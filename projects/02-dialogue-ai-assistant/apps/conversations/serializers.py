@@ -10,6 +10,10 @@ class MessageSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "sequence_number", "created_at"]
 
 
+class DialogueRequestSerializer(serializers.Serializer):
+    message = serializers.CharField(max_length=4000, allow_blank=False, trim_whitespace=True)
+
+
 class ConversationSerializer(serializers.ModelSerializer):
     messages = MessageSerializer(many=True, read_only=True)
 
