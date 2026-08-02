@@ -1,5 +1,4 @@
 from asgiref.sync import async_to_sync
-from django.conf import settings
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import status
@@ -7,7 +6,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from mongoose_core.ports.llm import LLMMessage
-from mongoose_core.providers.gemini import GeminiProvider
+from mongoose_core.providers.factory import build_llm_provider
 from mongoose_core.services.dialogue import DialogueService
 
 from .models import Conversation, Message
@@ -82,10 +81,7 @@ def chat(request, public_id):
     ]
 
     try:
-        provider = GeminiProvider(
-            api_key=settings.GEMINI_API_KEY,
-            model=settings.GEMINI_DIALOGUE_MODEL,
-        )
+        provider = build_llm_provider()
         result = async_to_sync(DialogueService(provider).reply)(history)
     except (ValueError, RuntimeError) as exc:
         return Response(
