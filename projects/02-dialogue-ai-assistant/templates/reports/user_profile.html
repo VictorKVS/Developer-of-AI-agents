@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Аналитический отчёт</title>
+  <style>
+    @page { size: A4; margin: 18mm; }
+    body { font-family: Arial, sans-serif; color: #111827; line-height: 1.5; }
+    header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f59e0b; padding-bottom: 12px; }
+    .logo { width: 210px; }
+    .meta { text-align: right; font-size: 12px; color: #4b5563; }
+    h1 { font-size: 26px; margin: 24px 0 8px; }
+    h2 { font-size: 17px; margin-top: 22px; border-left: 4px solid #f59e0b; padding-left: 10px; }
+    .card { background: #f3f4f6; border-radius: 8px; padding: 14px; }
+    .recommendation { margin-bottom: 14px; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; }
+    .warning { background: #fffbeb; border: 1px solid #fcd34d; padding: 12px; }
+    footer { margin-top: 28px; border-top: 1px solid #d1d5db; padding-top: 10px; font-size: 11px; color: #6b7280; }
+  </style>
+</head>
+<body>
+  <header>
+    <img class="logo" src="{{ logo_uri }}" alt="{{ brand_name }}">
+    <div class="meta">
+      <div>Отчёт № {{ report_id }}</div>
+      <div>{{ generated_at }}</div>
+    </div>
+  </header>
+
+  <h1>Итоги диалога и рекомендации</h1>
+
+  <h2>Профиль пользователя</h2>
+  <div class="card">
+    <p><strong>Имя:</strong> {{ analysis.profile.name|default:"Не указано" }}</p>
+    <p><strong>Опыт:</strong> {{ analysis.profile.experience|default:"Недостаточно данных" }}</p>
+    <p><strong>Цели:</strong> {{ analysis.profile.goals|join:", " }}</p>
+    <p><strong>Интересы:</strong> {{ analysis.profile.interests|join:", " }}</p>
+    <p><strong>Ограничения:</strong> {{ analysis.profile.constraints|join:", " }}</p>
+  </div>
+
+  <h2>Аналитическое резюме</h2>
+  <p>{{ analysis.summary }}</p>
+
+  <h2>Рекомендации</h2>
+  {% for item in analysis.recommendations %}
+    <div class="recommendation">
+      <strong>{{ item.title }}</strong>
+      <p>{{ item.reason }}</p>
+      <p><strong>Следующий шаг:</strong> {{ item.next_step }}</p>
+    </div>
+  {% empty %}
+    <p>Рекомендации не сформированы.</p>
+  {% endfor %}
+
+  <h2>Ограничения анализа</h2>
+  <div class="warning">
+    <p><strong>Уверенность модели:</strong> {{ confidence_percent }}%</p>
+    <p>{{ analysis.disclaimer }}</p>
+    {% if analysis.missing_information %}
+      <p><strong>Не хватило информации:</strong> {{ analysis.missing_information|join:", " }}</p>
+    {% endif %}
+  </div>
+
+  <footer>
+    {{ brand_name }} · Отчёт сформирован автоматически на основании истории диалога.
+  </footer>
+</body>
+</html>
