@@ -1,11 +1,21 @@
+from asgiref.sync import async_to_sync
+from django.conf import settings
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
+from mongoose_core.ports.llm import LLMMessage
+from mongoose_core.providers.gemini import GeminiProvider
+from mongoose_core.services.dialogue import DialogueService
+
 from .models import Conversation, Message
-from .serializers import ConversationSerializer, MessageSerializer
+from .serializers import (
+    ConversationSerializer,
+    DialogueRequestSerializer,
+    MessageSerializer,
+)
 
 
 @api_view(["POST"])
@@ -44,6 +54,71 @@ def add_message(request, public_id):
         sequence_number=next_sequence,
     )
     return Response(MessageSerializer(message).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(["POST"])
+def chat(request, public_id):
+    conversation = get_object_or_404(Conversation, public_id=public_id)
+    if conversation.status != Conversation.Status.ACTIVE:
+        return Response(
+            {"detail": "The conversation is not active."},
+            status=status.HTTP_409_CONFLICT,
+        )
+
+    request_serializer = DialogueRequestSerializer(data=request.data)
+    request_serializer.is_valid(raise_exception=True)
+    user_text = request_serializer.validated_data["message"]
+
+    user_message = Message.objects.create(
+        conversation=conversation,
+        role=Message.Role.USER,
+        content=user_text,
+        sequence_number=conversation.messages.count() + 1,
+    )
+
+    history = [
+        LLMMessage(role=item.role, content=item.content)
+        for item in conversation.messages.order_by("sequence_number")
+    ]
+
+    try:
+        provider = GeminiProvider(
+            api_key=settings.GEMINI_API_KEY,
+            model=settings.GEMINI_DIALOGUE_MODEL,
+        )
+        result = async_to_sync(DialogueService(provider).reply)(history)
+    except (ValueError, RuntimeError) as exc:
+        return Response(
+            {
+                "detail": str(exc),
+                "user_message": MessageSerializer(user_message).data,
+            },
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    except Exception:
+        return Response(
+            {
+                "detail": "The AI provider is temporarily unavailable.",
+                "user_message": MessageSerializer(user_message).data,
+            },
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+    assistant_message = Message.objects.create(
+        conversation=conversation,
+        role=Message.Role.ASSISTANT,
+        content=result.text,
+        sequence_number=conversation.messages.count() + 1,
+    )
+
+    return Response(
+        {
+            "conversation_id": conversation.public_id,
+            "model": result.model,
+            "user_message": MessageSerializer(user_message).data,
+            "assistant_message": MessageSerializer(assistant_message).data,
+        }
+    )
 
 
 @api_view(["POST"])
