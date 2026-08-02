@@ -1,0 +1,10 @@
+Django>=5.1,<6.0
+djangorestframework>=3.15,<4.0
+python-dotenv>=1.0,<2.0
+dj-database-url>=2.2,<3.0
+google-genai>=1.0,<2.0
+pydantic>=2.10,<3.0
+weasyprint>=63,<64
+pytest>=8.3,<9.0
+pytest-django>=4.9,<5.0
+ruff>=0.9,<1.0
