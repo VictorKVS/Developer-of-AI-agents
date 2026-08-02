@@ -84,9 +84,20 @@ REST_FRAMEWORK = {
     "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
 }
 
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gigachat")
+
+GIGACHAT_CREDENTIALS = os.getenv("GIGACHAT_CREDENTIALS", "")
+GIGACHAT_MODEL = os.getenv("GIGACHAT_MODEL", "GigaChat")
+GIGACHAT_SCOPE = os.getenv("GIGACHAT_SCOPE", "GIGACHAT_API_PERS")
+GIGACHAT_VERIFY_SSL_CERTS = (
+    os.getenv("GIGACHAT_VERIFY_SSL_CERTS", "true").lower() == "true"
+)
+GIGACHAT_CA_BUNDLE_FILE = os.getenv("GIGACHAT_CA_BUNDLE_FILE", "")
+
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_DIALOGUE_MODEL = os.getenv("GEMINI_DIALOGUE_MODEL", "gemini-2.5-flash")
 GEMINI_ANALYSIS_MODEL = os.getenv("GEMINI_ANALYSIS_MODEL", "gemini-2.5-flash")
+
 REPORT_BRAND_NAME = os.getenv("REPORT_BRAND_NAME", "MONGOOSE AI CORE")
 REPORT_LOGO_PATH = os.getenv(
     "REPORT_LOGO_PATH", "static/branding/logo-placeholder.svg"
