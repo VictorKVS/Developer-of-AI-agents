@@ -2,7 +2,11 @@
 
 ## Статус
 
-IN PROGRESS
+DONE
+
+## Дата завершения
+
+2026-08-03
 
 ## Цель
 
@@ -27,23 +31,34 @@ IN PROGRESS
 - `confidence` — уверенность анализа от 0 до 1;
 - `model` — использованная модель.
 
-## Изменяемые файлы
+## Изменённые файлы
 
 - `mongoose_core/schemas/analysis.py`
 - `mongoose_core/prompts/analysis.py`
 - `mongoose_core/services/analysis.py`
 - `tests/unit/test_analysis_service.py`
 
-## Definition of Done
+## Проверка
+
+- `python manage.py check` — успешно;
+- `pytest tests/unit/test_analysis_service.py -v` — 2 passed;
+- Python 3.10.11;
+- Django 5.2.16;
+- pytest 8.4.2.
+
+## Результат
 
 - сервис не зависит от Django;
 - LLM вызывается через `LLMProvider`;
 - ответ модели валидируется Pydantic-схемой;
 - поддерживается JSON в обычном виде и внутри Markdown code fence;
-- невалидный ответ вызывает понятную ошибку;
-- есть unit-тест без реального обращения к GigaChat;
-- после локальной проверки задача переводится в DONE.
+- невалидный ответ вызывает `AnalysisServiceError`;
+- unit-тесты работают без реального обращения к GigaChat.
 
 ## Commit
 
 `feat(analysis): add structured dialogue analysis service`
+
+## Следующая задача
+
+`TASK-0006 — Integrate analysis into conversation completion endpoint`.
