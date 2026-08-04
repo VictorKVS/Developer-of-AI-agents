@@ -1,22 +1,54 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MONGOOSE AI PLATFORM</title>
-</head>
-<body>
-    <h1>MONGOOSE AI PLATFORM</h1>
-    <nav>
-        <a href="/">Главная</a>
-        <a href="/chat/">Диалоги</a>
-        <a href="#">Клиенты</a>
-        <a href="#">Агенты</a>
-        <a href="#">База знаний</a>
-        <a href="#">Отчёты</a>
-        <a href="#">Информационная безопасность</a>
-        <a href="/admin/">Администрирование</a>
-    </nav>
-    <p>Платформа успешно запущена.</p>
-</body>
-</html>
+{% extends "base.html" %}
+{% block title %}MONGOOSE AI PLATFORM — Enterprise AI{% endblock %}
+{% block nav_home %}active{% endblock %}
+{% block content %}
+<section class="hero">
+    <div>
+        <span class="eyebrow">Enterprise AI ecosystem</span>
+        <h1><span class="gradient-text">Одна платформа.</span><br>Любой AI-агент.</h1>
+        <p>MONGOOSE AI объединяет диалоги, CRM, знания, безопасность, каналы связи и специализированных агентов в одном модульном ядре.</p>
+        <div class="hero-actions">
+            <a class="button" href="/chat/">Запустить AI-диалог <span>→</span></a>
+            <a class="button secondary" href="#modules">Исследовать платформу</a>
+        </div>
+    </div>
+    <div class="visual-orbit" aria-hidden="true">
+        <div class="orbit one"></div>
+        <div class="orbit two"></div>
+        <div class="orb-core"></div>
+        <span class="node n1"></span>
+        <span class="node n2"></span>
+    </div>
+</section>
+
+<section id="modules">
+    <div class="section-head">
+        <div>
+            <span class="eyebrow">Platform modules</span>
+            <h2>Архитектура, которая растёт вместе с курсами</h2>
+        </div>
+        <p>Каждое новое задание добавляет законченный модуль, не создавая отдельную разрозненную программу.</p>
+    </div>
+
+    <div class="module-grid">
+        <a class="module-card" href="/chat/" style="--accent:#66e3ff">
+            <span class="icon">✦</span><h3>Dialogue Center</h3><p>Единая история сообщений, контекст, AI-ответы и будущая передача оператору.</p>
+        </a>
+        <article class="module-card" style="--accent:#7a5cff">
+            <span class="icon">◎</span><h3>CRM Core</h3><p>Клиенты, контакты, интересы, обращения, задачи и омниканальная карточка.</p>
+        </article>
+        <article class="module-card" style="--accent:#19e6a2">
+            <span class="icon">◇</span><h3>Knowledge Factory</h3><p>Документы, RAG, источники, доказательства и проверяемые знания.</p>
+        </article>
+        <article class="module-card" style="--accent:#ff6b86">
+            <span class="icon">⬡</span><h3>Security Center</h3><p>RBAC, аудит, события ИБ, Top-100 контролей и защита AI-инструментов.</p>
+        </article>
+        <article class="module-card" style="--accent:#ffc857">
+            <span class="icon">◈</span><h3>Agent Runtime</h3><p>Реестр агентов, промпты, инструменты, LLM Router и guardrails.</p>
+        </article>
+        <article class="module-card" style="--accent:#54a8ff">
+            <span class="icon">▦</span><h3>Reports & Analytics</h3><p>PDF, показатели качества, история решений и управленческая отчётность.</p>
+        </article>
+    </div>
+</section>
+{% endblock %}
