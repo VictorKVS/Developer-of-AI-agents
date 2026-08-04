@@ -26,11 +26,25 @@
         <div class="analysis-control">
             <label for="analysis-profile">Точка зрения</label>
             <select id="analysis-profile" name="analysis_profile">
-                <option value="career_strategist">Карьерный стратег</option>
-                <option value="jungian_reflection">Юнгианская рефлексия</option>
+                <optgroup label="Карьера и развитие">
+                    <option value="career_strategist">Карьерный стратег</option>
+                    <option value="career_mentor">Карьерный наставник</option>
+                </optgroup>
+                <optgroup label="Проект и личная рефлексия">
+                    <option value="project_coach">Проектный коуч</option>
+                    <option value="jungian_reflection">Юнгианская рефлексия</option>
+                </optgroup>
             </select>
         </div>
-        <p id="analysis-hint" class="analysis-hint">Практический разбор навыков, целей, рисков и ближайшего плана развития.</p>
+
+        <button id="profile-info-toggle" class="profile-info-toggle" type="button" aria-expanded="false" aria-controls="profile-info">
+            Что делает этот профиль? <span>＋</span>
+        </button>
+        <div id="profile-info" class="profile-info" hidden>
+            <strong id="profile-info-title">Карьерный стратег</strong>
+            <p id="analysis-hint">Сопоставляет опыт, цели и рынок: показывает сильные стороны, риски и ближайший карьерный маршрут.</p>
+            <small id="profile-info-note">Практический профессиональный разбор без гарантии трудоустройства.</small>
+        </div>
 
         <button id="complete-button" class="button secondary" type="button">Завершить и проанализировать</button>
         <a id="download-link" class="button" href="#" hidden>Скачать PDF <span>↓</span></a>
@@ -41,9 +55,16 @@
 {% block scripts %}
 <script>
 let conversationId=null;
-const form=document.getElementById("chat-form"),input=document.getElementById("message"),messages=document.getElementById("messages"),statusBox=document.getElementById("status"),csrfToken=document.getElementById("csrf-token").dataset.token,completeButton=document.getElementById("complete-button"),downloadLink=document.getElementById("download-link"),analysisSummary=document.getElementById("analysis-summary"),analysisProfile=document.getElementById("analysis-profile"),analysisHint=document.getElementById("analysis-hint");
-const profileHints={career_strategist:"Практический разбор навыков, целей, рисков и ближайшего плана развития.",jungian_reflection:"Не-клиническая рефлексия мотивов, ценностей и возможных архетипических паттернов."};
-analysisProfile.addEventListener("change",()=>{analysisHint.textContent=profileHints[analysisProfile.value];});
+const form=document.getElementById("chat-form"),input=document.getElementById("message"),messages=document.getElementById("messages"),statusBox=document.getElementById("status"),csrfToken=document.getElementById("csrf-token").dataset.token,completeButton=document.getElementById("complete-button"),downloadLink=document.getElementById("download-link"),analysisSummary=document.getElementById("analysis-summary"),analysisProfile=document.getElementById("analysis-profile"),profileInfo=document.getElementById("profile-info"),profileInfoToggle=document.getElementById("profile-info-toggle"),profileInfoTitle=document.getElementById("profile-info-title"),analysisHint=document.getElementById("analysis-hint"),profileInfoNote=document.getElementById("profile-info-note");
+const profiles={
+career_strategist:{title:"Карьерный стратег",description:"Сопоставляет опыт, цели и рынок: показывает сильные стороны, риски и ближайший карьерный маршрут.",note:"Практический профессиональный разбор без гарантии трудоустройства."},
+career_mentor:{title:"Карьерный наставник",description:"Фокусируется на обучении: какие навыки развивать, какие проекты делать и как измерять прогресс.",note:"Подходит, когда нужен учебный маршрут и контрольные точки."},
+project_coach:{title:"Проектный коуч",description:"Разбирает идею как проект: приоритеты, этапы, риски, ресурсы и ближайший управленческий шаг.",note:"Подходит для продукта, стартапа, учебной или рабочей инициативы."},
+jungian_reflection:{title:"Юнгианская рефлексия",description:"Мягкий не-клинический взгляд на мотивы, ценности, противоречия и возможные архетипические темы.",note:"Это не диагностика. Выводы — только гипотезы для самоанализа."}
+};
+function updateProfileInfo(){const item=profiles[analysisProfile.value];profileInfoTitle.textContent=item.title;analysisHint.textContent=item.description;profileInfoNote.textContent=item.note;profileInfo.classList.remove("profile-info-flash");void profileInfo.offsetWidth;profileInfo.classList.add("profile-info-flash");}
+analysisProfile.addEventListener("change",()=>{updateProfileInfo();if(profileInfo.hidden){profileInfo.hidden=false;profileInfoToggle.setAttribute("aria-expanded","true");profileInfoToggle.querySelector("span").textContent="−";}});
+profileInfoToggle.addEventListener("click",()=>{const willOpen=profileInfo.hidden;profileInfo.hidden=!willOpen;profileInfoToggle.setAttribute("aria-expanded",String(willOpen));profileInfoToggle.querySelector("span").textContent=willOpen?"−":"＋";if(willOpen)updateProfileInfo();});
 function appendMessage(role,content){document.getElementById("empty-state")?.remove();const block=document.createElement("div");block.className=`message ${role}`;const title=document.createElement("strong"),text=document.createElement("p");title.textContent=role==="user"?"Вы":"MONGOOSE AI";text.textContent=content;block.append(title,text);messages.appendChild(block);messages.scrollTop=messages.scrollHeight;}
 function setThinking(active,text="AI формирует ответ"){statusBox.classList.remove("error");statusBox.innerHTML=active?`<span class="thinking">${text} <i></i><i></i><i></i></span>`:"";}
 async function parseError(response,fallback){let detail=fallback;try{const data=await response.json();detail=data.detail||fallback;}catch(_){const text=await response.text();if(text)detail=text.slice(0,300);}const id=response.headers.get("X-Correlation-ID");return id?`${detail} [request: ${id}]`:detail;}
