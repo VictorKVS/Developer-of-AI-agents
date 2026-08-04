@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<style>
+@page { size: A4; margin: 20mm 17mm; @bottom-right { content: "MONGOOSE AI • " counter(page); color: #64748b; font-size: 9px; } }
+body { font-family: DejaVu Sans, sans-serif; color:#172033; font-size:11px; line-height:1.55; }
+.header { background: linear-gradient(135deg,#07111f,#133457); color:white; padding:24px; border-radius:16px; }
+.brand { font-size:11px; letter-spacing:2px; color:#8ff7dd; font-weight:bold; }
+h1 { font-size:26px; margin:8px 0 5px; } h2 { color:#0f5e72; margin-top:22px; border-bottom:1px solid #d9e5ea; padding-bottom:6px; }
+.meta { color:#d1e2ec; font-size:10px; }.card { border:1px solid #dce7ec; border-radius:12px; padding:14px; margin:10px 0; background:#f8fbfc; }
+.tag { display:inline-block; padding:4px 8px; margin:2px; border-radius:10px; background:#e1f8f2; color:#155e55; }
+.rec { border-left:4px solid #13a88a; padding-left:12px; margin:12px 0; }.muted { color:#64748b; }
+.footer { margin-top:28px; font-size:9px; color:#64748b; border-top:1px solid #dce7ec; padding-top:10px; }
+</style>
+</head>
+<body>
+<section class="header">
+  <div class="brand">{{ brand_name }}</div>
+  <h1>Аналитический отчёт по диалогу</h1>
+  <div class="meta">Диалог: {{ conversation.public_id }}<br>Сформирован: {{ generated_at|date:"d.m.Y H:i" }}</div>
+</section>
+<h2>Резюме</h2><div class="card">{{ analysis.summary }}</div>
+<h2>Профиль пользователя</h2>
+<div class="card">
+{% if analysis.structured_data.name %}<p><b>Имя:</b> {{ analysis.structured_data.name }}</p>{% endif %}
+<p><b>Опыт:</b> {{ analysis.structured_data.experience|default:"Не определён" }}</p>
+<p><b>Цели:</b> {% for item in analysis.structured_data.goals %}<span class="tag">{{ item }}</span>{% empty %}<span class="muted">Не определены</span>{% endfor %}</p>
+<p><b>Интересы:</b> {% for item in analysis.structured_data.interests %}<span class="tag">{{ item }}</span>{% empty %}<span class="muted">Не определены</span>{% endfor %}</p>
+<p><b>Ограничения:</b> {% for item in analysis.structured_data.constraints %}<span class="tag">{{ item }}</span>{% empty %}<span class="muted">Не определены</span>{% endfor %}</p>
+</div>
+<h2>Рекомендации второй AI-модели</h2>
+{% for item in analysis.recommendations %}<div class="rec"><b>{{ item.title }}</b><br>{{ item.reason }}<br><b>Следующий шаг:</b> {{ item.next_step }}</div>{% empty %}<p class="muted">Недостаточно данных для рекомендаций.</p>{% endfor %}
+<h2>Качество анализа</h2><div class="card"><b>Уверенность:</b> {{ analysis.confidence|floatformat:2 }}<br><b>Недостающая информация:</b> {% for item in analysis.missing_information %}{{ item }}{% if not forloop.last %}; {% endif %}{% empty %}не выявлена{% endfor %}</div>
+<div class="footer">{{ analysis.structured_data.disclaimer|default:"Выводы основаны только на информации из диалога." }}<br>Документ сгенерирован автоматически платформой MONGOOSE AI.</div>
+</body></html>
