@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Career Track — MONGOOSE AI{% endblock %}
+{% block content %}
+<section class="hero" style="grid-template-columns:1fr;">
+  <div>
+    <span class="eyebrow">Career Intelligence</span>
+    <h1><span class="gradient-text">Resume Track Builder</span></h1>
+    <p>Загрузите резюме, выберите целевую роль и получите AI-анализ сильных сторон, пробелов и персональный трек развития.</p>
+  </div>
+</section>
+
+<section class="module-card" style="margin-top:24px;">
+  <form method="post" enctype="multipart/form-data" style="display:grid;gap:16px;">
+    {% csrf_token %}
+    <label><strong>Резюме</strong><br><input type="file" name="resume" accept=".pdf,.docx,.txt" required></label>
+    <label><strong>Целевая роль</strong><br>
+      <select name="target_role" required>
+        {% for key, label in target_roles.items %}
+          <option value="{{ key }}" {% if selected_role == key %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button class="button" type="submit">Построить трек <span>→</span></button>
+  </form>
+  <p class="status">Поддерживаются PDF, DOCX и TXT до 5 МБ. Исходный файл не сохраняется.</p>
+  {% if error %}<p class="status error">{{ error }}</p>{% endif %}
+</section>
+
+{% if result %}
+<section class="section-head"><div><span class="eyebrow">Result</span><h2>{{ result.target_role }}</h2></div><p>Модель: {{ model_name }} · Готовность: {{ result.readiness_percent }}%</p></section>
+<div class="module-grid">
+  <article class="module-card"><h3>Профиль</h3><p>{{ result.profile_summary }}</p></article>
+  <article class="module-card"><h3>Сильные стороны</h3><ul>{% for item in result.strengths %}<li>{{ item }}</li>{% endfor %}</ul></article>
+  <article class="module-card"><h3>Критические пробелы</h3><ul>{% for item in result.critical_gaps %}<li>{{ item }}</li>{% endfor %}</ul></article>
+</div>
+<section class="module-card" style="margin-top:18px;">
+  <h3>Персональный трек</h3>
+  {% for step in result.track %}
+    <div style="padding:14px 0;border-bottom:1px solid var(--line);">
+      <strong>{{ step.order }}. {{ step.title }}</strong>
+      <p>{{ step.purpose }}</p>
+      <small>Результат: {{ step.deliverable }}</small>
+    </div>
+  {% endfor %}
+  <h3>Следующая контрольная точка</h3><p>{{ result.next_checkpoint }}</p>
+  <p class="status">{{ result.disclaimer }}</p>
+</section>
+{% endif %}
+{% endblock %}
