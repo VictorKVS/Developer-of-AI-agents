@@ -20,8 +20,18 @@
         <div id="status" class="status" role="status"></div>
     </div>
     <aside class="side-panel">
-        <span class="eyebrow">Session</span><h3>Контроль диалога</h3>
-        <ul><li>Провайдер диалога: GigaChat</li><li>Вторая модель: анализ всей истории</li><li>История: сохраняется в БД</li><li>Correlation ID: включён</li><li>PDF: брендированный шаблон</li></ul>
+        <span class="eyebrow">Analysis Factory</span><h3>Экспертный разбор</h3>
+        <ul><li>Вторая модель анализирует всю историю</li><li>Выбранная перспектива меняет промпт</li><li>Результат проверяется Pydantic</li><li>PDF создаётся Report Factory</li></ul>
+
+        <div class="analysis-control">
+            <label for="analysis-profile">Точка зрения</label>
+            <select id="analysis-profile" name="analysis_profile">
+                <option value="career_strategist">Карьерный стратег</option>
+                <option value="jungian_reflection">Юнгианская рефлексия</option>
+            </select>
+        </div>
+        <p id="analysis-hint" class="analysis-hint">Практический разбор навыков, целей, рисков и ближайшего плана развития.</p>
+
         <button id="complete-button" class="button secondary" type="button">Завершить и проанализировать</button>
         <a id="download-link" class="button" href="#" hidden>Скачать PDF <span>↓</span></a>
         <p id="analysis-summary" class="status"></p>
@@ -31,12 +41,14 @@
 {% block scripts %}
 <script>
 let conversationId=null;
-const form=document.getElementById("chat-form"),input=document.getElementById("message"),messages=document.getElementById("messages"),statusBox=document.getElementById("status"),csrfToken=document.getElementById("csrf-token").dataset.token,completeButton=document.getElementById("complete-button"),downloadLink=document.getElementById("download-link"),analysisSummary=document.getElementById("analysis-summary");
+const form=document.getElementById("chat-form"),input=document.getElementById("message"),messages=document.getElementById("messages"),statusBox=document.getElementById("status"),csrfToken=document.getElementById("csrf-token").dataset.token,completeButton=document.getElementById("complete-button"),downloadLink=document.getElementById("download-link"),analysisSummary=document.getElementById("analysis-summary"),analysisProfile=document.getElementById("analysis-profile"),analysisHint=document.getElementById("analysis-hint");
+const profileHints={career_strategist:"Практический разбор навыков, целей, рисков и ближайшего плана развития.",jungian_reflection:"Не-клиническая рефлексия мотивов, ценностей и возможных архетипических паттернов."};
+analysisProfile.addEventListener("change",()=>{analysisHint.textContent=profileHints[analysisProfile.value];});
 function appendMessage(role,content){document.getElementById("empty-state")?.remove();const block=document.createElement("div");block.className=`message ${role}`;const title=document.createElement("strong"),text=document.createElement("p");title.textContent=role==="user"?"Вы":"MONGOOSE AI";text.textContent=content;block.append(title,text);messages.appendChild(block);messages.scrollTop=messages.scrollHeight;}
 function setThinking(active,text="AI формирует ответ"){statusBox.classList.remove("error");statusBox.innerHTML=active?`<span class="thinking">${text} <i></i><i></i><i></i></span>`:"";}
 async function parseError(response,fallback){let detail=fallback;try{const data=await response.json();detail=data.detail||fallback;}catch(_){const text=await response.text();if(text)detail=text.slice(0,300);}const id=response.headers.get("X-Correlation-ID");return id?`${detail} [request: ${id}]`:detail;}
 async function createConversation(){const response=await fetch("/api/v1/conversations/",{method:"POST",headers:{"Content-Type":"application/json","X-CSRFToken":csrfToken},credentials:"same-origin",body:"{}"});if(!response.ok)throw new Error(await parseError(response,"Не удалось создать диалог."));conversationId=(await response.json()).public_id;}
 form.addEventListener("submit",async event=>{event.preventDefault();const message=input.value.trim();if(!message)return;input.disabled=true;form.querySelector("button").disabled=true;setThinking(true);try{if(!conversationId)await createConversation();appendMessage("user",message);input.value="";const response=await fetch(`/api/v1/conversations/${conversationId}/chat/`,{method:"POST",headers:{"Content-Type":"application/json","X-CSRFToken":csrfToken},credentials:"same-origin",body:JSON.stringify({message})});if(!response.ok)throw new Error(await parseError(response,"Не удалось получить ответ AI."));appendMessage("assistant",(await response.json()).assistant_message.content);setThinking(false);}catch(error){statusBox.classList.add("error");statusBox.textContent=error.message;}finally{input.disabled=false;form.querySelector("button").disabled=false;input.focus();}});
-completeButton.addEventListener("click",async()=>{if(!conversationId){analysisSummary.textContent="Сначала проведите диалог.";return;}completeButton.disabled=true;form.querySelector("button").disabled=true;input.disabled=true;analysisSummary.textContent="Вторая AI-модель анализирует всю историю и формирует PDF…";try{const response=await fetch(`/api/v1/conversations/${conversationId}/complete/`,{method:"POST",headers:{"Content-Type":"application/json","X-CSRFToken":csrfToken},credentials:"same-origin",body:"{}"});if(!response.ok)throw new Error(await parseError(response,"Не удалось завершить анализ."));const data=await response.json();analysisSummary.textContent=data.summary||"Анализ завершён. Отчёт готов.";downloadLink.href=data.download_url;downloadLink.hidden=false;completeButton.hidden=true;}catch(error){analysisSummary.textContent=error.message;completeButton.disabled=false;form.querySelector("button").disabled=false;input.disabled=false;}});
+completeButton.addEventListener("click",async()=>{if(!conversationId){analysisSummary.textContent="Сначала проведите диалог.";return;}completeButton.disabled=true;analysisProfile.disabled=true;form.querySelector("button").disabled=true;input.disabled=true;analysisSummary.textContent=`Профиль «${analysisProfile.options[analysisProfile.selectedIndex].text}» анализирует всю историю и формирует PDF…`;try{const response=await fetch(`/api/v1/conversations/${conversationId}/complete/`,{method:"POST",headers:{"Content-Type":"application/json","X-CSRFToken":csrfToken},credentials:"same-origin",body:JSON.stringify({analysis_profile:analysisProfile.value})});if(!response.ok)throw new Error(await parseError(response,"Не удалось завершить анализ."));const data=await response.json();analysisSummary.textContent=`${data.analysis_profile_title||"Анализ"}: ${data.summary||"Отчёт готов."}`;downloadLink.href=data.download_url;downloadLink.hidden=false;completeButton.hidden=true;}catch(error){analysisSummary.textContent=error.message;completeButton.disabled=false;analysisProfile.disabled=false;form.querySelector("button").disabled=false;input.disabled=false;}});
 </script>
 {% endblock %}
