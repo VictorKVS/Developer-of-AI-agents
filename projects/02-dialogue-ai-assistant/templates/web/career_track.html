@@ -6,13 +6,17 @@
     <span class="eyebrow">Career Intelligence</span>
     <h1><span class="gradient-text">Resume Track Builder</span></h1>
     <p>Загрузите резюме, выберите целевую роль и получите AI-анализ сильных сторон, пробелов и персональный трек развития.</p>
+    <div class="hero-actions">
+      <a class="button secondary" href="/chat/">← Вернуться в диалог</a>
+      <a class="button secondary" href="/">На главную</a>
+    </div>
   </div>
 </section>
 
 <section class="module-card" style="margin-top:24px;">
   <form method="post" enctype="multipart/form-data" style="display:grid;gap:16px;">
     {% csrf_token %}
-    <label><strong>Резюме</strong><br><input type="file" name="resume" accept=".pdf,.docx,.txt" required></label>
+    <label><strong>Резюме или документ</strong><br><input type="file" name="resume" accept=".pdf,.docx,.txt" required></label>
     <label><strong>Целевая роль</strong><br>
       <select name="target_role" required>
         {% for key, label in target_roles.items %}
@@ -22,7 +26,7 @@
     </label>
     <button class="button" type="submit">Построить трек <span>→</span></button>
   </form>
-  <p class="status">Поддерживаются PDF, DOCX и TXT до 5 МБ. Исходный файл не сохраняется.</p>
+  <p class="status">Поддерживаются PDF, DOCX и TXT до 5 МБ. Исходный файл не сохраняется. В следующем этапе документ будет прикрепляться к единому рабочему контексту вместе с сообщениями.</p>
   {% if error %}<p class="status error">{{ error }}</p>{% endif %}
 </section>
 
@@ -44,6 +48,10 @@
   {% endfor %}
   <h3>Следующая контрольная точка</h3><p>{{ result.next_checkpoint }}</p>
   <p class="status">{{ result.disclaimer }}</p>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;">
+    <a class="button" href="/chat/">Продолжить в диалоге <span>→</span></a>
+    <a class="button secondary" href="/">На главную</a>
+  </div>
 </section>
 {% endif %}
 {% endblock %}
