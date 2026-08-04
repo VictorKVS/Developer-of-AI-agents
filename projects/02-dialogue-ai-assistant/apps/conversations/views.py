@@ -87,20 +87,27 @@ def chat(request, public_id):
 def complete_conversation(request, public_id):
     conversation = get_object_or_404(Conversation, public_id=public_id)
     if conversation.status == Conversation.Status.COMPLETED and hasattr(conversation, "report"):
+        analysis_profile = getattr(conversation.analysis, "prompt_version", "career_strategist") if hasattr(conversation, "analysis") else "career_strategist"
         return Response({
             "public_id": conversation.public_id,
             "status": conversation.status,
+            "analysis_profile": analysis_profile,
             "download_url": f"/api/v1/conversations/{conversation.public_id}/report/",
         })
     if not conversation.messages.exists():
         return Response({"detail": "Диалог пуст. Сначала добавьте сообщения."}, status=status.HTTP_400_BAD_REQUEST)
 
+    profile_key = request.data.get("analysis_profile", "career_strategist")
     conversation.status = Conversation.Status.ANALYZING
     conversation.save(update_fields=["status", "updated_at"])
     try:
-        result, model_name = analyze_conversation(conversation)
+        result, model_name, profile = analyze_conversation(conversation, profile_key)
         structured_data = result.profile.model_dump()
-        structured_data["disclaimer"] = result.disclaimer
+        structured_data.update({
+            "disclaimer": result.disclaimer,
+            "analysis_profile": profile.key,
+            "analysis_profile_title": profile.title,
+        })
         analysis, _ = UserAnalysis.objects.update_or_create(
             conversation=conversation,
             defaults={
@@ -110,13 +117,17 @@ def complete_conversation(request, public_id):
                 "confidence": result.confidence,
                 "missing_information": result.missing_information,
                 "model_name": model_name,
-                "prompt_version": "v1",
+                "prompt_version": profile.key,
             },
         )
         generate_pdf_report(conversation, analysis)
         conversation.status = Conversation.Status.COMPLETED
         conversation.completed_at = timezone.now()
         conversation.save(update_fields=["status", "completed_at", "updated_at"])
+    except ValueError as exc:
+        conversation.status = Conversation.Status.ACTIVE
+        conversation.save(update_fields=["status", "updated_at"])
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as exc:
         conversation.status = Conversation.Status.FAILED
         conversation.save(update_fields=["status", "updated_at"])
@@ -125,6 +136,8 @@ def complete_conversation(request, public_id):
     return Response({
         "public_id": conversation.public_id,
         "status": conversation.status,
+        "analysis_profile": profile.key,
+        "analysis_profile_title": profile.title,
         "summary": analysis.summary,
         "download_url": f"/api/v1/conversations/{conversation.public_id}/report/",
     })
