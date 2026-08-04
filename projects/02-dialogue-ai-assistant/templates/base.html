@@ -1,0 +1,46 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#08111f">
+    <title>{% block title %}MONGOOSE AI PLATFORM{% endblock %}</title>
+    <link rel="icon" type="image/svg+xml" href="{% static 'branding/favicon.svg' %}">
+    <link rel="stylesheet" href="{% static 'web/css/platform.css' %}">
+</head>
+<body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+
+    <header class="topbar">
+        <a class="brand" href="/" aria-label="MONGOOSE AI PLATFORM — главная">
+            <img src="{% static 'branding/logo-mark.svg' %}" alt="" width="42" height="42">
+            <span>
+                <strong>MONGOOSE AI</strong>
+                <small>PLATFORM</small>
+            </span>
+        </a>
+
+        <nav class="topnav" aria-label="Главная навигация">
+            <a href="/" class="{% block nav_home %}{% endblock %}">Главная</a>
+            <a href="/chat/" class="{% block nav_chat %}{% endblock %}">Диалоги</a>
+            <a href="#modules">Модули</a>
+            <a href="/admin/">Администрирование</a>
+        </nav>
+
+        <div class="system-badge"><span></span> System online</div>
+    </header>
+
+    <main class="page-shell">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <span>MONGOOSE AI PLATFORM</span>
+        <span>Security-first · Modular · Agent-ready</span>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>
