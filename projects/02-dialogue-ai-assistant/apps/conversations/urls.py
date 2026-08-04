@@ -8,4 +8,5 @@ urlpatterns = [
     path("<uuid:public_id>/messages/", views.add_message, name="message-create"),
     path("<uuid:public_id>/chat/", views.chat, name="conversation-chat"),
     path("<uuid:public_id>/complete/", views.complete_conversation, name="conversation-complete"),
+    path("<uuid:public_id>/report/", views.download_report, name="conversation-report"),
 ]
