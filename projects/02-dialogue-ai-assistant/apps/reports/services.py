@@ -1,31 +1,27 @@
 import hashlib
-from pathlib import Path
 
-from django.conf import settings
 from django.core.files.base import ContentFile
-from django.template.loader import render_to_string
-from django.utils import timezone
-from weasyprint import HTML
 
 from .models import GeneratedReport
+from .renderers import ReportLabPdfRenderer, ReportRenderer
+
+
+def build_report_renderer() -> ReportRenderer:
+    """Return the configured report renderer.
+
+    ReportLab is the default cross-platform renderer for local Windows,
+    Docker, Linux and CI environments. Additional renderers can be added
+    later without changing the analysis pipeline.
+    """
+
+    return ReportLabPdfRenderer()
 
 
 def generate_pdf_report(conversation, analysis):
-    html = render_to_string(
-        "reports/dialogue_report.html",
-        {
-            "brand_name": settings.REPORT_BRAND_NAME,
-            "conversation": conversation,
-            "analysis": analysis,
-            "generated_at": timezone.localtime(),
-        },
-    )
-    pdf_bytes = HTML(
-        string=html,
-        base_url=str(Path(settings.BASE_DIR)),
-    ).write_pdf()
+    renderer = build_report_renderer()
+    pdf_bytes = renderer.render(conversation=conversation, analysis=analysis)
     checksum = hashlib.sha256(pdf_bytes).hexdigest()
-    filename = f"mongoose-dialogue-{conversation.public_id}.pdf"
+    filename = f"mongoose-dialogue-{conversation.public_id}.{renderer.extension}"
 
     report, _ = GeneratedReport.objects.get_or_create(
         conversation=conversation,
