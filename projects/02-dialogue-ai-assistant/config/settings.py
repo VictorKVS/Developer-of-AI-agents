@@ -26,10 +26,12 @@ INSTALLED_APPS = [
     "apps.conversations",
     "apps.analysis",
     "apps.reports",
+    "apps.web",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "config.middleware.RequestTracingMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -102,3 +104,83 @@ REPORT_BRAND_NAME = os.getenv("REPORT_BRAND_NAME", "MONGOOSE AI CORE")
 REPORT_LOGO_PATH = os.getenv(
     "REPORT_LOGO_PATH", "static/branding/logo-placeholder.svg"
 )
+
+LOG_DIR = BASE_DIR / "logs"
+LOG_DIR.mkdir(exist_ok=True)
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "detailed": {
+            "format": (
+                "{asctime} | {levelname} | {name} | "
+                "{module}:{lineno} | {message}"
+            ),
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "detailed",
+        },
+        "application_file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": LOG_DIR / "application.log",
+            "maxBytes": 5 * 1024 * 1024,
+            "backupCount": 5,
+            "encoding": "utf-8",
+            "formatter": "detailed",
+        },
+        "error_file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": LOG_DIR / "errors.log",
+            "maxBytes": 5 * 1024 * 1024,
+            "backupCount": 5,
+            "encoding": "utf-8",
+            "formatter": "detailed",
+            "level": "WARNING",
+        },
+        "security_file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": LOG_DIR / "security.log",
+            "maxBytes": 5 * 1024 * 1024,
+            "backupCount": 5,
+            "encoding": "utf-8",
+            "formatter": "detailed",
+        },
+    },
+    "loggers": {
+        "mongoose.request": {
+            "handlers": ["console", "application_file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "mongoose.error": {
+            "handlers": ["console", "error_file"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["console", "error_file"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "django.security": {
+            "handlers": ["console", "security_file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "apps": {
+            "handlers": ["console", "application_file", "error_file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "mongoose_core": {
+            "handlers": ["console", "application_file", "error_file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}
