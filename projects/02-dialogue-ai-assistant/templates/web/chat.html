@@ -23,6 +23,12 @@
         <span class="eyebrow">Analysis Factory</span><h3>Экспертный разбор</h3>
         <ul><li>Вторая модель анализирует всю историю</li><li>Выбранная перспектива меняет промпт</li><li>Результат проверяется Pydantic</li><li>PDF создаётся Report Factory</li></ul>
 
+        <div style="display:grid;gap:10px;margin:16px 0;">
+            <a class="button" href="/career/">Загрузить документ <span>↑</span></a>
+            <a class="button secondary" href="/">← На главную</a>
+        </div>
+        <p class="analysis-hint">Документы и сообщения будут объединяться в одном рабочем контексте пользователя или кейса.</p>
+
         <div class="analysis-control">
             <label for="analysis-profile">Точка зрения</label>
             <select id="analysis-profile" name="analysis_profile">
@@ -55,7 +61,7 @@
 {% block scripts %}
 <script>
 let conversationId=null;
-const form=document.getElementById("chat-form"),input=document.getElementById("message"),messages=document.getElementById("messages"),statusBox=document.getElementById("status"),csrfToken=document.getElementById("csrf-token").dataset.token,completeButton=document.getElementById("complete-button"),downloadLink=document.getElementById("download-link"),analysisSummary=document.getElementById("analysis-summary"),analysisProfile=document.getElementById("analysis-profile"),profileInfo=document.getElementById("profile-info"),profileInfoToggle=document.getElementById("profile-info-toggle"),profileInfoTitle=document.getElementById("profile-info-title"),analysisHint=document.getElementById("analysis-hint"),profileInfoNote=document.getElementById("profile-info-note");
+const form=document.getElementById("chat-form"),input=document.getElementById("message"),messages=document.getElementById("messages"),statusBox=document.getElementById("status"),csrfToken=document.getElementById("csrf-token").dataset.token,completeButton=document.getElementById("complete-button"),downloadLink=document.getElementById("download-link"),analysisSummary=document.getElementById("analysis-summary"),analysisProfile=document.getElementById("analysis-profile"),profileInfo=document.getElementById("profile-info"),profileInfoToggle=document.getElementById("profile-info-toggle"),profileInfoTitle=document.getElementById("profile-info-title"),analysisHint=document.querySelector("#profile-info #analysis-hint"),profileInfoNote=document.getElementById("profile-info-note");
 const profiles={
 career_strategist:{title:"Карьерный стратег",description:"Сопоставляет опыт, цели и рынок: показывает сильные стороны, риски и ближайший карьерный маршрут.",note:"Практический профессиональный разбор без гарантии трудоустройства."},
 career_mentor:{title:"Карьерный наставник",description:"Фокусируется на обучении: какие навыки развивать, какие проекты делать и как измерять прогресс.",note:"Подходит, когда нужен учебный маршрут и контрольные точки."},
