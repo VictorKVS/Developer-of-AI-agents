@@ -3,25 +3,15 @@
 {% block nav_chat %}active{% endblock %}
 {% block content %}
 <div id="csrf-token" data-token="{{ csrf_token }}" hidden></div>
-
 <section class="chat-layout">
     <div class="chat-panel">
         <div class="chat-header">
-            <div>
-                <span class="eyebrow">Dialogue Center</span>
-                <h1>Диалог с AI</h1>
-                <p>Защищённый канал через MONGOOSE AI CORE и GigaChat.</p>
-            </div>
+            <div><span class="eyebrow">Dialogue Center</span><h1>Диалог с AI</h1><p>Защищённый канал через MONGOOSE AI CORE и GigaChat.</p></div>
             <div class="system-badge"><span></span> AI ready</div>
         </div>
-
         <section id="messages" class="messages" aria-live="polite">
-            <div id="empty-state" class="empty-state">
-                <strong>Новый диалог</strong>
-                <p>Задайте вопрос — история сохранится в Dialogue Center.</p>
-            </div>
+            <div id="empty-state" class="empty-state"><strong>Новый диалог</strong><p>Задайте вопрос — история сохранится в Dialogue Center.</p></div>
         </section>
-
         <form id="chat-form" class="chat-form">
             <label for="message">Сообщение</label>
             <textarea id="message" name="message" rows="2" maxlength="4000" placeholder="Введите сообщение…" required></textarea>
@@ -29,107 +19,24 @@
         </form>
         <div id="status" class="status" role="status"></div>
     </div>
-
     <aside class="side-panel">
-        <span class="eyebrow">Session</span>
-        <h3>Контроль диалога</h3>
-        <ul>
-            <li>Шифрование канала: локальный HTTPS-ready</li>
-            <li>Провайдер: GigaChat</li>
-            <li>История: сохраняется в БД</li>
-            <li>Correlation ID: включён</li>
-            <li>Анализ и PDF: следующий модуль</li>
-        </ul>
+        <span class="eyebrow">Session</span><h3>Контроль диалога</h3>
+        <ul><li>Провайдер диалога: GigaChat</li><li>Вторая модель: анализ всей истории</li><li>История: сохраняется в БД</li><li>Correlation ID: включён</li><li>PDF: брендированный шаблон</li></ul>
+        <button id="complete-button" class="button secondary" type="button">Завершить и проанализировать</button>
+        <a id="download-link" class="button" href="#" hidden>Скачать PDF <span>↓</span></a>
+        <p id="analysis-summary" class="status"></p>
     </aside>
 </section>
 {% endblock %}
-
 {% block scripts %}
 <script>
-    let conversationId = null;
-    const form = document.getElementById("chat-form");
-    const input = document.getElementById("message");
-    const messages = document.getElementById("messages");
-    const status = document.getElementById("status");
-    const csrfToken = document.getElementById("csrf-token").dataset.token;
-
-    function appendMessage(role, content) {
-        document.getElementById("empty-state")?.remove();
-        const block = document.createElement("div");
-        block.className = `message ${role}`;
-        const title = document.createElement("strong");
-        const text = document.createElement("p");
-        title.textContent = role === "user" ? "Вы" : "MONGOOSE AI";
-        text.textContent = content;
-        block.append(title, text);
-        messages.appendChild(block);
-        messages.scrollTop = messages.scrollHeight;
-    }
-
-    function setThinking(active) {
-        status.classList.remove("error");
-        status.innerHTML = active
-            ? '<span class="thinking">AI формирует ответ <i></i><i></i><i></i></span>'
-            : "";
-    }
-
-    async function parseError(response, fallback) {
-        let detail = fallback;
-        try {
-            const data = await response.json();
-            detail = data.detail || fallback;
-        } catch (_) {
-            const text = await response.text();
-            if (text) detail = text.slice(0, 300);
-        }
-        const correlationId = response.headers.get("X-Correlation-ID");
-        return correlationId ? `${detail} [request: ${correlationId}]` : detail;
-    }
-
-    async function createConversation() {
-        const response = await fetch("/api/v1/conversations/", {
-            method: "POST",
-            headers: {"Content-Type": "application/json", "X-CSRFToken": csrfToken},
-            credentials: "same-origin",
-            body: "{}"
-        });
-        if (!response.ok) throw new Error(await parseError(response, "Не удалось создать диалог."));
-        conversationId = (await response.json()).public_id;
-    }
-
-    form.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        const message = input.value.trim();
-        if (!message) return;
-
-        input.disabled = true;
-        form.querySelector("button").disabled = true;
-        setThinking(true);
-
-        try {
-            if (!conversationId) await createConversation();
-            appendMessage("user", message);
-            input.value = "";
-
-            const response = await fetch(`/api/v1/conversations/${conversationId}/chat/`, {
-                method: "POST",
-                headers: {"Content-Type": "application/json", "X-CSRFToken": csrfToken},
-                credentials: "same-origin",
-                body: JSON.stringify({message})
-            });
-
-            if (!response.ok) throw new Error(await parseError(response, "Не удалось получить ответ AI."));
-            const data = await response.json();
-            appendMessage("assistant", data.assistant_message.content);
-            setThinking(false);
-        } catch (error) {
-            status.classList.add("error");
-            status.textContent = error.message;
-        } finally {
-            input.disabled = false;
-            form.querySelector("button").disabled = false;
-            input.focus();
-        }
-    });
+let conversationId=null;
+const form=document.getElementById("chat-form"),input=document.getElementById("message"),messages=document.getElementById("messages"),statusBox=document.getElementById("status"),csrfToken=document.getElementById("csrf-token").dataset.token,completeButton=document.getElementById("complete-button"),downloadLink=document.getElementById("download-link"),analysisSummary=document.getElementById("analysis-summary");
+function appendMessage(role,content){document.getElementById("empty-state")?.remove();const block=document.createElement("div");block.className=`message ${role}`;const title=document.createElement("strong"),text=document.createElement("p");title.textContent=role==="user"?"Вы":"MONGOOSE AI";text.textContent=content;block.append(title,text);messages.appendChild(block);messages.scrollTop=messages.scrollHeight;}
+function setThinking(active,text="AI формирует ответ"){statusBox.classList.remove("error");statusBox.innerHTML=active?`<span class="thinking">${text} <i></i><i></i><i></i></span>`:"";}
+async function parseError(response,fallback){let detail=fallback;try{const data=await response.json();detail=data.detail||fallback;}catch(_){const text=await response.text();if(text)detail=text.slice(0,300);}const id=response.headers.get("X-Correlation-ID");return id?`${detail} [request: ${id}]`:detail;}
+async function createConversation(){const response=await fetch("/api/v1/conversations/",{method:"POST",headers:{"Content-Type":"application/json","X-CSRFToken":csrfToken},credentials:"same-origin",body:"{}"});if(!response.ok)throw new Error(await parseError(response,"Не удалось создать диалог."));conversationId=(await response.json()).public_id;}
+form.addEventListener("submit",async event=>{event.preventDefault();const message=input.value.trim();if(!message)return;input.disabled=true;form.querySelector("button").disabled=true;setThinking(true);try{if(!conversationId)await createConversation();appendMessage("user",message);input.value="";const response=await fetch(`/api/v1/conversations/${conversationId}/chat/`,{method:"POST",headers:{"Content-Type":"application/json","X-CSRFToken":csrfToken},credentials:"same-origin",body:JSON.stringify({message})});if(!response.ok)throw new Error(await parseError(response,"Не удалось получить ответ AI."));appendMessage("assistant",(await response.json()).assistant_message.content);setThinking(false);}catch(error){statusBox.classList.add("error");statusBox.textContent=error.message;}finally{input.disabled=false;form.querySelector("button").disabled=false;input.focus();}});
+completeButton.addEventListener("click",async()=>{if(!conversationId){analysisSummary.textContent="Сначала проведите диалог.";return;}completeButton.disabled=true;form.querySelector("button").disabled=true;input.disabled=true;analysisSummary.textContent="Вторая AI-модель анализирует всю историю и формирует PDF…";try{const response=await fetch(`/api/v1/conversations/${conversationId}/complete/`,{method:"POST",headers:{"Content-Type":"application/json","X-CSRFToken":csrfToken},credentials:"same-origin",body:"{}"});if(!response.ok)throw new Error(await parseError(response,"Не удалось завершить анализ."));const data=await response.json();analysisSummary.textContent=data.summary||"Анализ завершён. Отчёт готов.";downloadLink.href=data.download_url;downloadLink.hidden=false;completeButton.hidden=true;}catch(error){analysisSummary.textContent=error.message;completeButton.disabled=false;form.querySelector("button").disabled=false;input.disabled=false;}});
 </script>
 {% endblock %}
