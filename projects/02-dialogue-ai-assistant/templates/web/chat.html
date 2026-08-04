@@ -1,127 +1,135 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Диалог — MONGOOSE AI PLATFORM</title>
-</head>
-<body>
-    <div id="csrf-token" data-token="{{ csrf_token }}" hidden></div>
+{% extends "base.html" %}
+{% block title %}Dialogue Center — MONGOOSE AI{% endblock %}
+{% block nav_chat %}active{% endblock %}
+{% block content %}
+<div id="csrf-token" data-token="{{ csrf_token }}" hidden></div>
 
-    <header>
-        <h1>MONGOOSE AI PLATFORM</h1>
-        <nav>
-            <a href="/">Главная</a>
-            <a href="/chat/">Диалоги</a>
-            <a href="/admin/">Администрирование</a>
-        </nav>
-    </header>
+<section class="chat-layout">
+    <div class="chat-panel">
+        <div class="chat-header">
+            <div>
+                <span class="eyebrow">Dialogue Center</span>
+                <h1>Диалог с AI</h1>
+                <p>Защищённый канал через MONGOOSE AI CORE и GigaChat.</p>
+            </div>
+            <div class="system-badge"><span></span> AI ready</div>
+        </div>
 
-    <main>
-        <h2>Диалог с AI</h2>
-        <section id="messages"><p>Начните новый диалог.</p></section>
+        <section id="messages" class="messages" aria-live="polite">
+            <div id="empty-state" class="empty-state">
+                <strong>Новый диалог</strong>
+                <p>Задайте вопрос — история сохранится в Dialogue Center.</p>
+            </div>
+        </section>
 
-        <form id="chat-form">
+        <form id="chat-form" class="chat-form">
             <label for="message">Сообщение</label>
-            <textarea id="message" name="message" rows="4" maxlength="4000" required></textarea>
-            <button type="submit">Отправить</button>
+            <textarea id="message" name="message" rows="2" maxlength="4000" placeholder="Введите сообщение…" required></textarea>
+            <button class="button" type="submit">Отправить <span>→</span></button>
         </form>
-        <p id="status"></p>
-    </main>
+        <div id="status" class="status" role="status"></div>
+    </div>
 
-    <script>
-        let conversationId = null;
-        const form = document.getElementById("chat-form");
-        const input = document.getElementById("message");
-        const messages = document.getElementById("messages");
-        const status = document.getElementById("status");
-        const csrfToken = document.getElementById("csrf-token").dataset.token;
+    <aside class="side-panel">
+        <span class="eyebrow">Session</span>
+        <h3>Контроль диалога</h3>
+        <ul>
+            <li>Шифрование канала: локальный HTTPS-ready</li>
+            <li>Провайдер: GigaChat</li>
+            <li>История: сохраняется в БД</li>
+            <li>Correlation ID: включён</li>
+            <li>Анализ и PDF: следующий модуль</li>
+        </ul>
+    </aside>
+</section>
+{% endblock %}
 
-        function appendMessage(role, content) {
-            const block = document.createElement("div");
-            const title = document.createElement("strong");
-            const text = document.createElement("p");
-            title.textContent = role === "user" ? "Вы" : "AI";
-            text.textContent = content;
-            block.appendChild(title);
-            block.appendChild(text);
-            messages.appendChild(block);
+{% block scripts %}
+<script>
+    let conversationId = null;
+    const form = document.getElementById("chat-form");
+    const input = document.getElementById("message");
+    const messages = document.getElementById("messages");
+    const status = document.getElementById("status");
+    const csrfToken = document.getElementById("csrf-token").dataset.token;
+
+    function appendMessage(role, content) {
+        document.getElementById("empty-state")?.remove();
+        const block = document.createElement("div");
+        block.className = `message ${role}`;
+        const title = document.createElement("strong");
+        const text = document.createElement("p");
+        title.textContent = role === "user" ? "Вы" : "MONGOOSE AI";
+        text.textContent = content;
+        block.append(title, text);
+        messages.appendChild(block);
+        messages.scrollTop = messages.scrollHeight;
+    }
+
+    function setThinking(active) {
+        status.classList.remove("error");
+        status.innerHTML = active
+            ? '<span class="thinking">AI формирует ответ <i></i><i></i><i></i></span>'
+            : "";
+    }
+
+    async function parseError(response, fallback) {
+        let detail = fallback;
+        try {
+            const data = await response.json();
+            detail = data.detail || fallback;
+        } catch (_) {
+            const text = await response.text();
+            if (text) detail = text.slice(0, 300);
         }
+        const correlationId = response.headers.get("X-Correlation-ID");
+        return correlationId ? `${detail} [request: ${correlationId}]` : detail;
+    }
 
-        async function parseError(response, fallback) {
-            let detail = fallback;
-            try {
-                const data = await response.json();
-                detail = data.detail || fallback;
-            } catch (_) {
-                const text = await response.text();
-                if (text) detail = text.slice(0, 300);
-            }
-            const correlationId = response.headers.get("X-Correlation-ID");
-            return correlationId
-                ? `${detail} [request: ${correlationId}]`
-                : detail;
-        }
+    async function createConversation() {
+        const response = await fetch("/api/v1/conversations/", {
+            method: "POST",
+            headers: {"Content-Type": "application/json", "X-CSRFToken": csrfToken},
+            credentials: "same-origin",
+            body: "{}"
+        });
+        if (!response.ok) throw new Error(await parseError(response, "Не удалось создать диалог."));
+        conversationId = (await response.json()).public_id;
+    }
 
-        async function createConversation() {
-            const response = await fetch("/api/v1/conversations/", {
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const message = input.value.trim();
+        if (!message) return;
+
+        input.disabled = true;
+        form.querySelector("button").disabled = true;
+        setThinking(true);
+
+        try {
+            if (!conversationId) await createConversation();
+            appendMessage("user", message);
+            input.value = "";
+
+            const response = await fetch(`/api/v1/conversations/${conversationId}/chat/`, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": csrfToken
-                },
+                headers: {"Content-Type": "application/json", "X-CSRFToken": csrfToken},
                 credentials: "same-origin",
-                body: "{}"
+                body: JSON.stringify({message})
             });
 
-            if (!response.ok) {
-                throw new Error(await parseError(response, "Не удалось создать диалог."));
-            }
-
+            if (!response.ok) throw new Error(await parseError(response, "Не удалось получить ответ AI."));
             const data = await response.json();
-            conversationId = data.public_id;
+            appendMessage("assistant", data.assistant_message.content);
+            setThinking(false);
+        } catch (error) {
+            status.classList.add("error");
+            status.textContent = error.message;
+        } finally {
+            input.disabled = false;
+            form.querySelector("button").disabled = false;
+            input.focus();
         }
-
-        form.addEventListener("submit", async (event) => {
-            event.preventDefault();
-            const message = input.value.trim();
-            if (!message) return;
-
-            input.disabled = true;
-            status.textContent = "AI формирует ответ…";
-
-            try {
-                if (!conversationId) await createConversation();
-                appendMessage("user", message);
-                input.value = "";
-
-                const response = await fetch(
-                    `/api/v1/conversations/${conversationId}/chat/`,
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "X-CSRFToken": csrfToken
-                        },
-                        credentials: "same-origin",
-                        body: JSON.stringify({ message })
-                    }
-                );
-
-                if (!response.ok) {
-                    throw new Error(await parseError(response, "Не удалось получить ответ AI."));
-                }
-
-                const data = await response.json();
-                appendMessage("assistant", data.assistant_message.content);
-                status.textContent = "";
-            } catch (error) {
-                status.textContent = error.message;
-            } finally {
-                input.disabled = false;
-                input.focus();
-            }
-        });
-    </script>
-</body>
-</html>
+    });
+</script>
+{% endblock %}
