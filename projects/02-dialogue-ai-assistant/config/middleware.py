@@ -20,16 +20,19 @@ class RequestTracingMiddleware:
         request.correlation_id = correlation_id
         started_at = time.perf_counter()
 
-        request_logger.info(
-            "REQUEST_START id=%s method=%s path=%s user=%s ip=%s",
-            correlation_id,
-            request.method,
-            request.get_full_path(),
-            getattr(request.user, "username", "anonymous"),
-            self._get_client_ip(request),
-        )
-
         try:
+            user = getattr(request, "user", None)
+            username = getattr(user, "username", "anonymous") or "anonymous"
+
+            request_logger.info(
+                "REQUEST_START id=%s method=%s path=%s user=%s ip=%s",
+                correlation_id,
+                request.method,
+                request.get_full_path(),
+                username,
+                self._get_client_ip(request),
+            )
+
             response = self.get_response(request)
         except Exception:
             error_logger.exception(
