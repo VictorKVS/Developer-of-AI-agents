@@ -1,4 +1,5 @@
 import json
+import logging
 
 from asgiref.sync import async_to_sync
 from django.db import transaction
@@ -19,31 +20,29 @@ from mongoose_core.services.dialogue import DialogueService
 from .models import Conversation, Message
 from .serializers import ConversationSerializer, DialogueRequestSerializer, MessageSerializer
 
+logger = logging.getLogger("apps.conversations")
 
-def _build_workspace_message(request) -> LLMMessage | None:
-    workspace = request.session.get("workspace_context", {})
-    resume_text = workspace.get("resume_text", "").strip()
-    career_track = workspace.get("career_track") or {}
-    if not resume_text and not career_track:
+
+def _build_workspace_context(request) -> str | None:
+    resume_text = request.session.get("workspace_resume_text")
+    career_result = request.session.get("workspace_career_track")
+
+    if not resume_text and not career_result:
         return None
 
-    context_payload = {
-        "document_name": workspace.get("document_name", ""),
-        "target_role": workspace.get("target_role_title", ""),
-        "career_track": career_track,
-    }
-    context_json = json.dumps(context_payload, ensure_ascii=False, indent=2)
-    content = (
-        "Ты работаешь внутри MONGOOSE AI Workspace. Пользователь ранее загрузил резюме, "
-        "и платформа уже выполнила профессиональный анализ. Используй приведённые ниже данные "
-        "как общий контекст текущей сессии. Отвечай только на основании резюме, результатов анализа "
-        "и сообщений диалога. Не утверждай факты, которых в этих данных нет. При запросах об ИБ "
-        "сопоставляй опыт кандидата с требованиями позиции и явно разделяй сильные стороны, пробелы, "
-        "риски и следующие шаги.\n\n"
-        f"СТРУКТУРИРОВАННЫЙ АНАЛИЗ WORKSPACE:\n{context_json}\n\n"
-        f"ТЕКСТ ЗАГРУЖЕННОГО РЕЗЮМЕ:\n{resume_text}"
+    parts = ["WORKSPACE LITE — ДАННЫЕ КАНДИДАТА"]
+    if resume_text:
+        parts.append("\nИСХОДНОЕ РЕЗЮМЕ:\n" + resume_text[:14000])
+    if career_result:
+        parts.append(
+            "\nСТРУКТУРИРОВАННЫЙ КАРЬЕРНЫЙ АНАЛИЗ:\n"
+            + json.dumps(career_result, ensure_ascii=False, indent=2)[:8000]
+        )
+    parts.append(
+        "\nПри запросе анализа отделяй подтверждённые факты, сильные стороны, "
+        "пробелы, риски и рекомендуемые следующие шаги."
     )
-    return LLMMessage(role="system", content=content)
+    return "\n".join(parts)
 
 
 @api_view(["POST"])
@@ -90,21 +89,30 @@ def chat(request, public_id):
         content=user_text,
         sequence_number=conversation.messages.count() + 1,
     )
-
-    history = []
-    workspace_message = _build_workspace_message(request)
-    if workspace_message:
-        history.append(workspace_message)
-    history.extend(
+    history = [
         LLMMessage(role=item.role, content=item.content)
         for item in conversation.messages.order_by("sequence_number")
-    )
+    ]
+    workspace_context = _build_workspace_context(request)
 
     try:
-        result = async_to_sync(DialogueService(build_llm_provider()).reply)(history)
+        result = async_to_sync(DialogueService(build_llm_provider()).reply)(
+            history,
+            workspace_context=workspace_context,
+        )
     except (ValueError, RuntimeError) as exc:
+        logger.exception(
+            "Dialogue provider rejected request conversation=%s workspace=%s",
+            conversation.public_id,
+            bool(workspace_context),
+        )
         return Response({"detail": str(exc), "user_message": MessageSerializer(user_message).data}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
     except Exception:
+        logger.exception(
+            "Unexpected dialogue provider failure conversation=%s workspace=%s",
+            conversation.public_id,
+            bool(workspace_context),
+        )
         return Response({"detail": "The AI provider is temporarily unavailable.", "user_message": MessageSerializer(user_message).data}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
     assistant_message = Message.objects.create(
@@ -116,7 +124,7 @@ def chat(request, public_id):
     return Response({
         "conversation_id": conversation.public_id,
         "model": result.model,
-        "workspace_loaded": workspace_message is not None,
+        "workspace_context_used": bool(workspace_context),
         "user_message": MessageSerializer(user_message).data,
         "assistant_message": MessageSerializer(assistant_message).data,
     })
