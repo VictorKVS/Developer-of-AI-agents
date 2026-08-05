@@ -1,0 +1,134 @@
+standard:
+  id: kvs-engineering-standard
+  version: 1.0.0
+  status: active
+  language: ru
+  purpose: >-
+    Единый машиночитаемый стандарт организации проектов курса и портфолио.
+    Используется людьми и AI-агентами для навигации, повторного использования решений,
+    контроля структуры и сохранения инженерной памяти.
+
+naming:
+  directory_prefix: "^[0-9]{2}_"
+  file_prefix: "^[0-9]{2}_"
+  ordering: numeric_ascending
+  reserved_prefixes:
+    admin: "00_"
+    requirements: "01_"
+    reference: "02_"
+    source: "03_"
+    documentation: "04_"
+    demo: "05_"
+    tests: "06_"
+    release: "07_"
+    archive: "99_"
+
+required_project_sections:
+  - id: admin
+    path: 00_ADMIN
+    required: true
+  - id: requirements
+    path: 01_REQUIREMENTS
+    required: true
+  - id: reference
+    path: 02_REFERENCE
+    required: true
+  - id: source
+    path: 03_SOURCE
+    required: true
+  - id: documentation
+    path: 04_DOCUMENTATION
+    required: true
+  - id: demo
+    path: 05_DEMO
+    required: true
+  - id: tests
+    path: 06_TESTS
+    required: false
+  - id: release
+    path: 07_RELEASE
+    required: false
+  - id: archive
+    path: 99_ARCHIVE
+    required: true
+
+required_files:
+  - path: project.manifest.yaml
+    purpose: machine_readable_project_context
+  - path: 00_ADMIN/00_PROJECT_PLAN.md
+    purpose: human_project_plan
+  - path: 00_ADMIN/01_ROADMAP.md
+    purpose: staged_development_plan
+  - path: 00_ADMIN/02_CHANGELOG.md
+    purpose: release_history
+  - path: 00_ADMIN/03_PROJECT_JOURNAL.md
+    purpose: decision_and_work_log
+  - path: 04_DOCUMENTATION/00_README.md
+    purpose: project_entry_point
+  - path: 04_DOCUMENTATION/01_CONCEPT.md
+    purpose: product_concept
+  - path: 04_DOCUMENTATION/02_ARCHITECTURE.md
+    purpose: architecture_description
+  - path: 04_DOCUMENTATION/03_DATA_MODEL.md
+    purpose: data_model
+  - path: 04_DOCUMENTATION/04_AGENT_MODEL.md
+    purpose: agent_roles_tools_memory_rules
+  - path: 04_DOCUMENTATION/05_SECURITY.md
+    purpose: security_and_privacy
+
+agent_behavior:
+  read_order:
+    - project.manifest.yaml
+    - 00_ADMIN/03_PROJECT_JOURNAL.md
+    - 00_ADMIN/04_DECISIONS.md
+    - 04_DOCUMENTATION/01_CONCEPT.md
+    - 04_DOCUMENTATION/02_ARCHITECTURE.md
+    - 04_DOCUMENTATION/04_AGENT_MODEL.md
+    - 04_DOCUMENTATION/05_SECURITY.md
+  rules:
+    - reuse_existing_components_before_creating_new
+    - do_not_repeat_rejected_decisions
+    - preserve_numbered_structure
+    - update_manifest_after_material_change
+    - update_project_journal_after_material_change
+    - distinguish_implemented_planned_and_demo_features
+    - never_store_secrets_in_repository
+    - use_synthetic_data_for_public_demo
+    - preserve_traceability_from_requirement_to_implementation
+
+knowledge_reuse:
+  reusable_asset_types:
+    - component
+    - service
+    - prompt
+    - schema
+    - test_case
+    - architecture_decision
+    - safety_rule
+    - demo_dataset
+  required_metadata:
+    - id
+    - title
+    - source_project
+    - status
+    - path
+    - tags
+    - compatibility
+    - restrictions
+
+status_vocabulary:
+  - idea
+  - planned
+  - in_progress
+  - implemented
+  - tested
+  - deprecated
+  - rejected
+  - archived
+
+change_control:
+  material_change_requires:
+    - manifest_update
+    - journal_entry
+    - changelog_entry_if_user_visible
+    - architecture_decision_if_structural
