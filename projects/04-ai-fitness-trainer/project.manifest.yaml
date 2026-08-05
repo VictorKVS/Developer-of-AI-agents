@@ -1,0 +1,205 @@
+schema: ../../00_STANDARDS/01_PROJECT_MANIFEST.schema.json
+
+project:
+  id: project-04-ai-fitness-trainer
+  title: PULSE CARE AI
+  version: 0.1.0-concept
+  repository_path: projects/04-ai-fitness-trainer
+  course_stage: "04. Creating an AI assistant with a web interface"
+  description: >-
+    Учебный AI-native веб-концепт по ДЗ 2242 PRO: цели, дневник показателей,
+    динамический прогноз, объяснимые рекомендации, синтетические данные,
+    демонстрационные устройства и событийный агент.
+  tags:
+    - react
+    - vite
+    - typescript
+    - gemini
+    - health
+    - fitness
+    - explainable-ai
+    - synthetic-demo
+
+status:
+  phase: in_progress
+  implemented:
+    - project concept
+    - machine-readable data types
+    - safety model documentation
+    - roadmap
+    - synthetic demo policy
+  planned:
+    - react application shell
+    - goals management
+    - metric journal
+    - deterministic forecast service
+    - progress charts
+    - mock device center
+    - context event simulator
+    - notification engine
+    - AI coach
+  blocked: []
+
+requirements:
+  - id: HW-2242-01
+    text: Пользователь может создавать и изменять одну или несколько фитнес-целей.
+    status: planned
+    evidence: []
+  - id: HW-2242-02
+    text: Пользователь добавляет датированные показатели и видит их в таблице или списке.
+    status: planned
+    evidence: []
+  - id: HW-2242-03
+    text: Прогноз достижения цели автоматически пересчитывается по историческим данным.
+    status: planned
+    evidence: []
+  - id: HW-2242-04
+    text: Прогноз отображается текстом и может сопровождаться графиком.
+    status: planned
+    evidence: []
+  - id: EXT-01
+    text: Все публичные медицинские, фитнес-, географические и поведенческие данные являются синтетическими.
+    status: implemented
+    evidence:
+      - README.md
+      - docs/CONCEPT.md
+  - id: EXT-02
+    text: Подключение гаджетов представлено мок-адаптерами и не объявляется реальной интеграцией.
+    status: planned
+    evidence: []
+
+architecture:
+  stack:
+    - React 19
+    - Vite
+    - TypeScript
+    - Google Gemini
+    - Recharts
+    - localStorage
+  modules:
+    - Dashboard
+    - Goals
+    - Metric Journal
+    - Forecast Engine
+    - AI Coach
+    - Safety Engine
+    - Mock Device Center
+    - Context Event Simulator
+    - Notification Engine
+  data_flows:
+    - synthetic data -> normalization -> deterministic forecast -> safety rules -> AI explanation
+    - mock device event -> event bus -> notification policy -> user message
+  constraints:
+    - no real medical data in public demo
+    - no diagnosis or treatment
+    - deterministic calculations for numeric forecast
+    - LLM explains but does not invent forecast values
+    - explicit distinction between free, pro, demo and planned functionality
+
+agents:
+  - id: coordinator-agent
+    goal: Координировать достижение пользовательской цели на основе контекста и правил.
+    inputs:
+      - goals
+      - metric entries
+      - synthetic device events
+      - health profile demo
+      - user notification preferences
+    tools:
+      - forecast service
+      - safety engine
+      - notification engine
+      - Gemini explanation service
+    outputs:
+      - daily plan
+      - progress summary
+      - contextual notification
+    guardrails:
+      - no diagnosis
+      - no treatment
+      - safety engine approval required
+  - id: forecast-agent
+    goal: Рассчитать темп и срок достижения цели проверяемым способом.
+    inputs:
+      - historical metric values
+      - target value
+      - goal direction
+    tools:
+      - linear regression
+      - data quality checks
+    outputs:
+      - estimated date
+      - estimated weeks
+      - confidence
+      - explanation inputs
+    guardrails:
+      - no LLM arithmetic
+      - insufficient-data state required
+  - id: safety-agent
+    goal: Проверить рекомендацию до показа пользователю.
+    inputs:
+      - proposed action
+      - synthetic health restrictions
+      - risk rules
+    tools:
+      - green yellow red rules
+    outputs:
+      - allow
+      - caution
+      - block
+      - doctor-review-required
+    guardrails:
+      - explicit medical limitation disclaimer
+
+reusable_assets:
+  - id: orbit.modal.react.v1
+    type: component
+    path: source-ai-studio/original-task-tracker/components/Modal.tsx
+    status: candidate
+    tags: [react, modal, ui]
+    restrictions:
+      - adapt branding and accessibility before reuse
+  - id: orbit.sidebar.react.v1
+    type: component
+    path: source-ai-studio/original-task-tracker/components/Sidebar.tsx
+    status: candidate
+    tags: [react, navigation, ui]
+    restrictions:
+      - replace task navigation with health modules
+  - id: orbit.analytics.recharts.v1
+    type: component
+    path: source-ai-studio/original-task-tracker/components/Analytics.tsx
+    status: candidate
+    tags: [react, recharts, analytics]
+    restrictions:
+      - replace static insight with calculated fitness data
+  - id: mongoose.structured-output.v1
+    type: schema
+    path: projects/02-dialogue-ai-assistant
+    status: candidate
+    tags: [pydantic, structured-output, llm-validation]
+    restrictions:
+      - backend migration required for production use
+
+
+decisions:
+  - id: ADR-001
+    status: accepted
+    decision: Публичная версия использует только синтетические данные.
+    reason: Безопасная демонстрация и отсутствие персональных медицинских данных.
+    supersedes: null
+  - id: ADR-002
+    status: accepted
+    decision: Прогноз рассчитывается детерминированным модулем, а LLM объясняет готовый результат.
+    reason: Проверяемость чисел и защита от галлюцинаций модели.
+    supersedes: null
+  - id: ADR-003
+    status: accepted
+    decision: Интеграции с устройствами в v0.1 реализуются через mock providers и synthetic events.
+    reason: Веб-ДЗ не требует мобильных HealthKit или Health Connect интеграций.
+    supersedes: null
+  - id: ADR-004
+    status: accepted
+    decision: Проект проектируется как Free MVP с документированным Pro roadmap.
+    reason: Требования курса закрываются ограниченным законченным продуктом без ложной реализации будущих функций.
+    supersedes: null
