@@ -1,5 +1,6 @@
 import io
 import json
+import logging
 import re
 from pathlib import Path
 
@@ -10,6 +11,8 @@ from pypdf import PdfReader
 
 from mongoose_core.ports.llm import LLMMessage
 from mongoose_core.providers.factory import build_llm_provider
+
+logger = logging.getLogger("apps.web.career")
 
 MAX_FILE_SIZE = 5 * 1024 * 1024
 ALLOWED_SUFFIXES = {".pdf", ".docx", ".txt"}
@@ -69,10 +72,40 @@ def extract_resume_text(uploaded_file) -> str:
 
 
 def _extract_json(text: str) -> dict:
-    cleaned = text.strip()
+    cleaned = (text or "").strip()
+    if not cleaned:
+        raise ValueError("AI-модель вернула пустой ответ вместо структурированного анализа.")
+
     cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r"\s*```$", "", cleaned)
-    return json.loads(cleaned)
+
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        preview = cleaned[:300].replace("\n", " ")
+        raise ValueError(
+            "AI-модель вернула ответ без JSON-объекта. "
+            f"Начало ответа: {preview}"
+        )
+
+    candidate = cleaned[start : end + 1]
+    try:
+        payload = json.loads(candidate)
+    except json.JSONDecodeError as exc:
+        logger.warning(
+            "Career JSON parse failed line=%s column=%s preview=%r",
+            exc.lineno,
+            exc.colno,
+            candidate[:500],
+        )
+        raise ValueError(
+            "AI-модель вернула повреждённый JSON. "
+            f"Ошибка в строке {exc.lineno}, позиция {exc.colno}."
+        ) from exc
+
+    if not isinstance(payload, dict):
+        raise ValueError("Структурированный ответ AI должен быть JSON-объектом.")
+    return payload
 
 
 def _item_to_text(item) -> str:
@@ -160,15 +193,11 @@ def _normalize_career_payload(payload: dict, target_role: str) -> dict:
     return payload
 
 
-def build_career_track(resume_text: str, target_role_key: str) -> tuple[CareerTrackResult, str]:
-    target_role = TARGET_ROLES.get(target_role_key)
-    if not target_role:
-        raise ValueError("Неизвестная целевая роль.")
-
-    system_prompt = f"""
+def _career_system_prompt(target_role: str) -> str:
+    return f"""
 Ты Career Track Analyst платформы MONGOOSE AI.
 Проанализируй резюме только по имеющимся фактам и сопоставь его с целевой ролью: {target_role}.
-Не выдумывай опыт, достижения и навыки. Верни только валидный JSON без Markdown:
+Не выдумывай опыт, достижения и навыки. Верни только валидный JSON без Markdown и без пояснений до или после JSON:
 {{
   "target_role": "{target_role}",
   "profile_summary": "...",
@@ -188,11 +217,43 @@ def build_career_track(resume_text: str, target_role_key: str) -> tuple[CareerTr
 Сделай практический трек из 5-7 последовательных шагов. Для каждого шага укажи проверяемый результат.
 """.strip()
 
+
+def build_career_track(resume_text: str, target_role_key: str) -> tuple[CareerTrackResult, str]:
+    target_role = TARGET_ROLES.get(target_role_key)
+    if not target_role:
+        raise ValueError("Неизвестная целевая роль.")
+
     provider = build_llm_provider()
+    system_prompt = _career_system_prompt(target_role)
     result = async_to_sync(provider.generate)(
         [LLMMessage(role="user", content=resume_text)],
         system_instruction=system_prompt,
     )
-    payload = _normalize_career_payload(_extract_json(result.text), target_role)
-    parsed = CareerTrackResult.model_validate(payload)
+
+    try:
+        payload = _extract_json(result.text)
+    except ValueError as first_error:
+        logger.warning(
+            "Career analysis response requires repair model=%s error=%s preview=%r",
+            result.model,
+            first_error,
+            (result.text or "")[:500],
+        )
+        repair_prompt = (
+            "Исправь предыдущий ответ. Верни только один валидный JSON-объект "
+            "строго по заданной схеме, без Markdown, комментариев и вводного текста."
+        )
+        repaired = async_to_sync(provider.generate)(
+            [
+                LLMMessage(role="user", content=resume_text),
+                LLMMessage(role="assistant", content=result.text or ""),
+                LLMMessage(role="user", content=repair_prompt),
+            ],
+            system_instruction=system_prompt,
+        )
+        payload = _extract_json(repaired.text)
+        result = repaired
+
+    normalized = _normalize_career_payload(payload, target_role)
+    parsed = CareerTrackResult.model_validate(normalized)
     return parsed, result.model
