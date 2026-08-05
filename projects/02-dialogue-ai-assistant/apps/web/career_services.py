@@ -25,6 +25,19 @@ DEFAULT_DISCLAIMER = (
     "и не является гарантией трудоустройства."
 )
 
+SENSITIVE_CAREER_REPLACEMENTS = (
+    (r"(?i)военн(?:ая|ой|ую|ые|ый|ого)?\s+служб\w*", "государственная служба"),
+    (r"(?i)военнослужащ\w*", "государственный специалист"),
+    (r"(?i)антитеррористическ\w*", "комплексная объектовая безопасность"),
+    (r"(?i)террористическ\w*", "угрозы объектовой безопасности"),
+    (r"(?i)экстремистск\w*", "риски общественной безопасности"),
+    (r"(?i)противодейств\w*\s+техническ\w*\s+средств\w*\s+разведк\w*", "защита от внешних технических угроз"),
+    (r"(?i)разведк\w*", "внешних угроз"),
+    (r"(?i)секретн\w*", "ограниченного доступа"),
+    (r"(?i)государственн\w*\s+тайн\w*", "информации ограниченного доступа"),
+    (r"(?i)оружи\w*", "специализированных средств"),
+)
+
 
 class TrackStep(BaseModel):
     order: int
@@ -69,6 +82,16 @@ def extract_resume_text(uploaded_file) -> str:
     if len(normalized) < 120:
         raise ValueError("Не удалось извлечь достаточно текста из резюме.")
     return normalized[:30000]
+
+
+def _prepare_resume_for_career_analysis(resume_text: str) -> str:
+    """Build a career-only copy without changing the Workspace source document."""
+    prepared = resume_text
+    for pattern, replacement in SENSITIVE_CAREER_REPLACEMENTS:
+        prepared = re.sub(pattern, replacement, prepared)
+
+    prepared = re.sub(r"\s+", " ", prepared).strip()
+    return prepared[:20000]
 
 
 def _extract_json(text: str) -> dict:
@@ -196,8 +219,10 @@ def _normalize_career_payload(payload: dict, target_role: str) -> dict:
 def _career_system_prompt(target_role: str) -> str:
     return f"""
 Ты Career Track Analyst платформы MONGOOSE AI.
-Проанализируй резюме только по имеющимся фактам и сопоставь его с целевой ролью: {target_role}.
-Не выдумывай опыт, достижения и навыки. Верни только валидный JSON без Markdown и без пояснений до или после JSON:
+Это синтетическое демонстрационное резюме. Выполняй только профессиональный анализ компетенций и карьерного соответствия целевой роли: {target_role}.
+Не оценивай политические взгляды, благонадёжность, здоровье, личную жизнь и иные чувствительные характеристики. Не делай проверку службы безопасности.
+Учитывай только опыт, навыки, проекты, образование и профессиональные результаты. Не выдумывай отсутствующие факты.
+Верни только валидный JSON без Markdown и без пояснений до или после JSON:
 {{
   "target_role": "{target_role}",
   "profile_summary": "...",
@@ -223,10 +248,11 @@ def build_career_track(resume_text: str, target_role_key: str) -> tuple[CareerTr
     if not target_role:
         raise ValueError("Неизвестная целевая роль.")
 
-    provider = build_llm_provider()
+    analysis_resume = _prepare_resume_for_career_analysis(resume_text)
     system_prompt = _career_system_prompt(target_role)
+    provider = build_llm_provider()
     result = async_to_sync(provider.generate)(
-        [LLMMessage(role="user", content=resume_text)],
+        [LLMMessage(role="user", content=analysis_resume)],
         system_instruction=system_prompt,
     )
 
@@ -240,15 +266,14 @@ def build_career_track(resume_text: str, target_role_key: str) -> tuple[CareerTr
             (result.text or "")[:500],
         )
         repair_prompt = (
-            "Исправь предыдущий ответ. Верни только один валидный JSON-объект "
-            "строго по заданной схеме, без Markdown, комментариев и вводного текста."
+            "Повтори профессиональный анализ этого синтетического резюме. "
+            "Учитывай только опыт, навыки, проекты и образование. "
+            "Верни только один валидный JSON-объект строго по заданной схеме, "
+            "без Markdown, комментариев и вводного текста."
         )
-        repaired = async_to_sync(provider.generate)(
-            [
-                LLMMessage(role="user", content=resume_text),
-                LLMMessage(role="assistant", content=result.text or ""),
-                LLMMessage(role="user", content=repair_prompt),
-            ],
+        retry_provider = build_llm_provider()
+        repaired = async_to_sync(retry_provider.generate)(
+            [LLMMessage(role="user", content=analysis_resume + "\n\n" + repair_prompt)],
             system_instruction=system_prompt,
         )
         payload = _extract_json(repaired.text)
