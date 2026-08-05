@@ -1,11 +1,11 @@
-schema_version: "1.0"
+schema_version: "1.1"
 project:
   id: "01-text-meaning-tone-editor"
   order: 1
   title: "MONGOOSE TEXT"
   subtitle: "AI-редактор смыслов и тональности текста"
   homework: "2235 PRO"
-  status: needs_inventory
+  status: source_code_missing
   path: "projects/01-text-meaning-tone-editor"
   language: ru
   demo_data_policy: synthetic_or_user_provided_only
@@ -44,19 +44,19 @@ outputs:
 requirements:
   - id: R01
     description: "Принимать исходный текст"
-    status: implemented_claimed
+    status: requires_source_evidence
   - id: R02
     description: "Принимать цель, аудиторию и тональность"
-    status: implemented_claimed
+    status: requires_source_evidence
   - id: R03
     description: "Поддерживать дополнительные параметры"
-    status: implemented_claimed
+    status: requires_source_evidence
   - id: R04
     description: "Сохранять исходный смысл"
-    status: requires_evidence
+    status: requires_test_evidence
   - id: R05
     description: "Возвращать адаптированный текст, нейтральную версию и пояснение"
-    status: implemented_claimed
+    status: requires_source_evidence
   - id: R06
     description: "Предоставить ссылку на приложение"
     status: missing
@@ -69,6 +69,22 @@ requirements:
   - id: R09
     description: "Описать сложнейшую проблему и способ решения"
     status: missing
+
+source_inventory:
+  verified_homework_document: true
+  editor_source_received: false
+  unrelated_source_received:
+    title: "ИИ Путешественник"
+    classification: course_reference_example
+    must_not_be_used_as_project_01_implementation: true
+  missing_editor_assets:
+    - App.tsx
+    - model_service
+    - domain_types
+    - complete_system_prompt
+    - application_url
+    - screenshots
+    - test_examples
 
 prompt_architecture:
   layers:
@@ -94,6 +110,8 @@ accepted_decisions:
     decision: "После лимита уточнений формировать ответ по имеющимся данным"
   - id: D04
     decision: "Возвращать структурированный результат из трёх блоков"
+  - id: D05
+    decision: "Не смешивать исходник приложения ИИ Путешественник с реализацией ДЗ 2235 PRO"
 
 reusable_assets:
   - transformation_parameter_model
@@ -103,17 +121,19 @@ reusable_assets:
   - prompt_configuration_ui_pattern
 
 next_actions:
-  - inventory_existing_source_files
-  - copy_application_into_project_folder
-  - document_prompt_architecture
+  - locate_text_editor_source_files
+  - copy_editor_application_into_project_folder
+  - verify_prompt_architecture_against_source
   - add_demo_examples
   - add_interface_screenshots
   - record_application_url
   - document_hardest_problem_and_solution
+  - archive_ai_traveler_as_separate_reference
 
 agent_read_order:
   - project.manifest.yaml
   - README.md
   - docs/00_TASK_2235_PRO.md
   - docs/01_PROMPT_ARCHITECTURE.md
+  - docs/02_SOURCE_INVENTORY.md
   - docs/04_PROJECT_JOURNAL.md
