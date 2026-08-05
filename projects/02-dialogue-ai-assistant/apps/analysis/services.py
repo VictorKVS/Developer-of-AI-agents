@@ -47,6 +47,12 @@ confidence — число от 0 до 1.
 """.strip()
 
 
+def _safe_preview(value: str | None, limit: int = 1200) -> str:
+    """Return a bounded single-line preview suitable for diagnostics."""
+    text = (value or "").replace("\x00", "").strip()
+    return text[:limit]
+
+
 def _extract_json(text: str) -> dict:
     """Return the first complete JSON object from a flexible LLM response."""
     cleaned = (text or "").strip()
@@ -156,25 +162,87 @@ def _normalize_analysis_payload(payload: dict) -> dict:
     return payload
 
 
-def _generate_with_repair(history: list[LLMMessage], system_instruction: str):
+def _generate_with_repair(
+    history: list[LLMMessage],
+    system_instruction: str,
+    *,
+    conversation_id: str,
+):
+    logger.info(
+        "ANALYSIS_PRIMARY_START conversation=%s history_messages=%d history_chars=%d system_chars=%d",
+        conversation_id,
+        len(history),
+        sum(len(item.content or "") for item in history),
+        len(system_instruction),
+    )
+    if history:
+        logger.info(
+            "ANALYSIS_HISTORY_RANGE conversation=%s first_role=%s last_role=%s first_preview=%r last_preview=%r",
+            conversation_id,
+            history[0].role,
+            history[-1].role,
+            _safe_preview(history[0].content, 400),
+            _safe_preview(history[-1].content, 400),
+        )
+    logger.debug(
+        "ANALYSIS_SYSTEM_PREVIEW conversation=%s preview=%r",
+        conversation_id,
+        _safe_preview(system_instruction, 1600),
+    )
+
     provider = build_llm_provider()
     result = async_to_sync(provider.generate)(history, system_instruction=system_instruction)
+    logger.info(
+        "ANALYSIS_PRIMARY_RESPONSE conversation=%s model=%s response_chars=%d preview=%r",
+        conversation_id,
+        result.model,
+        len(result.text or ""),
+        _safe_preview(result.text, 1600),
+    )
     try:
-        return _extract_json(result.text), result.model
+        payload = _extract_json(result.text)
+        logger.info(
+            "ANALYSIS_PRIMARY_JSON_OK conversation=%s keys=%s",
+            conversation_id,
+            sorted(payload.keys()),
+        )
+        return payload, result.model
     except ValueError as exc:
         logger.warning(
-            "Analysis response requires repair model=%s error=%s preview=%r",
+            "ANALYSIS_PRIMARY_REPAIR_REQUIRED conversation=%s model=%s error=%s preview=%r",
+            conversation_id,
             result.model,
             exc,
-            (result.text or "")[:300],
+            _safe_preview(result.text, 1600),
         )
 
+    repair_instruction = f"{system_instruction}\n\n{REPAIR_PROMPT}"
+    logger.info(
+        "ANALYSIS_REPAIR_START conversation=%s history_messages=%d history_chars=%d system_chars=%d",
+        conversation_id,
+        len(history),
+        sum(len(item.content or "") for item in history),
+        len(repair_instruction),
+    )
     repair_provider = build_llm_provider()
     repair_result = async_to_sync(repair_provider.generate)(
         history,
-        system_instruction=f"{system_instruction}\n\n{REPAIR_PROMPT}",
+        system_instruction=repair_instruction,
     )
-    return _extract_json(repair_result.text), repair_result.model
+    logger.info(
+        "ANALYSIS_REPAIR_RESPONSE conversation=%s model=%s response_chars=%d preview=%r",
+        conversation_id,
+        repair_result.model,
+        len(repair_result.text or ""),
+        _safe_preview(repair_result.text, 1600),
+    )
+    payload = _extract_json(repair_result.text)
+    logger.info(
+        "ANALYSIS_REPAIR_JSON_OK conversation=%s keys=%s",
+        conversation_id,
+        sorted(payload.keys()),
+    )
+    return payload, repair_result.model
 
 
 def analyze_conversation(conversation, profile_key: str | None = None):
@@ -185,6 +253,7 @@ def analyze_conversation(conversation, profile_key: str | None = None):
     if not history:
         raise ValueError("Диалог пуст. Сначала добавьте сообщения.")
 
+    conversation_id = str(conversation.public_id)
     profile = get_analysis_profile(profile_key)
     system_instruction = (
         f"{BASE_ANALYSIS_PROMPT}\n\n"
@@ -193,8 +262,37 @@ def analyze_conversation(conversation, profile_key: str | None = None):
         f"ОБЯЗАТЕЛЬНЫЙ ДИСКЛЕЙМЕР: {profile.disclaimer}"
     )
 
-    raw_payload, model_name = _generate_with_repair(history, system_instruction)
+    logger.info(
+        "ANALYSIS_CONTEXT conversation=%s profile=%s history_messages=%d history_chars=%d system_chars=%d",
+        conversation_id,
+        profile.key,
+        len(history),
+        sum(len(item.content or "") for item in history),
+        len(system_instruction),
+    )
+
+    raw_payload, model_name = _generate_with_repair(
+        history,
+        system_instruction,
+        conversation_id=conversation_id,
+    )
     payload = _normalize_analysis_payload(raw_payload)
+    logger.info(
+        "ANALYSIS_NORMALIZED conversation=%s profile_name=%r goals=%d interests=%d recommendations=%d missing=%d confidence=%s",
+        conversation_id,
+        payload.get("profile", {}).get("name"),
+        len(payload.get("profile", {}).get("goals", [])),
+        len(payload.get("profile", {}).get("interests", [])),
+        len(payload.get("recommendations", [])),
+        len(payload.get("missing_information", [])),
+        payload.get("confidence"),
+    )
     parsed = AnalysisResult.model_validate(payload)
     parsed.disclaimer = profile.disclaimer
+    logger.info(
+        "ANALYSIS_VALIDATED conversation=%s model=%s profile=%s",
+        conversation_id,
+        model_name,
+        profile.key,
+    )
     return parsed, model_name, profile
