@@ -13,21 +13,53 @@
   </div>
 </section>
 
-<section class="module-card" style="margin-top:24px;">
-  <form method="post" enctype="multipart/form-data" style="display:grid;gap:16px;">
+<section class="module-card career-upload-card" style="margin-top:24px;">
+  <form id="career-form" method="post" enctype="multipart/form-data" class="career-form">
     {% csrf_token %}
-    <label><strong>Резюме или документ</strong><br><input type="file" name="resume" accept=".pdf,.docx,.txt" required></label>
-    <label><strong>Целевая роль</strong><br>
+
+    <div class="career-field">
+      <strong class="career-label">Резюме или документ</strong>
+      <label id="file-drop" class="file-drop" for="resume-file">
+        <input id="resume-file" type="file" name="resume" accept=".pdf,.docx,.txt" required>
+        <span class="file-drop-icon">↑</span>
+        <span class="file-drop-copy">
+          <strong id="file-title">Выберите файл</strong>
+          <small id="file-meta">PDF, DOCX или TXT · до 5 МБ</small>
+        </span>
+        <span id="file-state" class="file-state">Ожидание</span>
+      </label>
+
+      <div id="upload-progress" class="upload-progress" hidden aria-live="polite">
+        <div class="upload-progress-head">
+          <span id="upload-status">Подготовка файла…</span>
+          <strong id="upload-percent">0%</strong>
+        </div>
+        <div class="upload-track"><span id="upload-bar"></span></div>
+      </div>
+    </div>
+
+    <label class="career-field">
+      <strong class="career-label">Целевая роль</strong>
       <select name="target_role" required>
         {% for key, label in target_roles.items %}
           <option value="{{ key }}" {% if selected_role == key %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
     </label>
-    <button class="button" type="submit">Построить трек <span>→</span></button>
+
+    <button id="build-track-button" class="button career-submit" type="submit" disabled>
+      <span id="build-track-label">Сначала выберите файл</span><span>→</span>
+    </button>
   </form>
-  <p class="status">Поддерживаются PDF, DOCX и TXT до 5 МБ. Исходный файл не сохраняется. В следующем этапе документ будет прикрепляться к единому рабочему контексту вместе с сообщениями.</p>
-  {% if error %}<p class="status error">{{ error }}</p>{% endif %}
+
+  <p class="status career-note">Поддерживаются PDF, DOCX и TXT до 5 МБ. Исходный файл не сохраняется. После анализа документ становится частью текущего Workspace вместе с сообщениями.</p>
+  {% if error %}
+    <div id="career-error" class="career-alert error" role="alert">
+      <strong>Не удалось построить трек</strong>
+      <span>{{ error }}</span>
+      <button id="dismiss-career-error" type="button" aria-label="Закрыть сообщение">×</button>
+    </div>
+  {% endif %}
 </section>
 
 {% if result %}
@@ -54,4 +86,129 @@
   </div>
 </section>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+  const input = document.getElementById('resume-file');
+  const drop = document.getElementById('file-drop');
+  const title = document.getElementById('file-title');
+  const meta = document.getElementById('file-meta');
+  const state = document.getElementById('file-state');
+  const progress = document.getElementById('upload-progress');
+  const progressBar = document.getElementById('upload-bar');
+  const progressPercent = document.getElementById('upload-percent');
+  const progressStatus = document.getElementById('upload-status');
+  const submit = document.getElementById('build-track-button');
+  const submitLabel = document.getElementById('build-track-label');
+  const form = document.getElementById('career-form');
+  const error = document.getElementById('career-error');
+  const dismiss = document.getElementById('dismiss-career-error');
+  const maxSize = 5 * 1024 * 1024;
+  const allowed = ['pdf', 'docx', 'txt'];
+
+  function hideError() {
+    if (!error) return;
+    error.classList.add('is-hiding');
+    window.setTimeout(() => error.remove(), 260);
+  }
+
+  if (dismiss) dismiss.addEventListener('click', hideError);
+  if (error) window.setTimeout(hideError, 8000);
+
+  function resetFile(message = 'Выберите файл') {
+    drop.classList.remove('is-loading', 'is-ready', 'is-invalid');
+    title.textContent = message;
+    meta.textContent = 'PDF, DOCX или TXT · до 5 МБ';
+    state.textContent = 'Ожидание';
+    progress.hidden = true;
+    progressBar.style.width = '0%';
+    progressPercent.textContent = '0%';
+    submit.disabled = true;
+    submit.classList.remove('is-ready');
+    submitLabel.textContent = 'Сначала выберите файл';
+  }
+
+  function setInvalid(message) {
+    drop.classList.remove('is-loading', 'is-ready');
+    drop.classList.add('is-invalid');
+    state.textContent = 'Ошибка';
+    title.textContent = 'Файл не принят';
+    meta.textContent = message;
+    progress.hidden = true;
+    submit.disabled = true;
+    submit.classList.remove('is-ready');
+    submitLabel.textContent = 'Выберите другой файл';
+  }
+
+  function setProgress(value, label) {
+    progress.hidden = false;
+    progressBar.style.width = `${value}%`;
+    progressPercent.textContent = `${value}%`;
+    progressStatus.textContent = label;
+  }
+
+  function setReady(file) {
+    drop.classList.remove('is-loading', 'is-invalid');
+    drop.classList.add('is-ready');
+    state.textContent = 'Готово';
+    title.textContent = file.name;
+    meta.textContent = `${(file.size / 1024).toFixed(1)} КБ · файл успешно загружен`;
+    setProgress(100, 'Файл готов к анализу');
+    submit.disabled = false;
+    submit.classList.add('is-ready');
+    submitLabel.textContent = 'Построить трек';
+  }
+
+  input.addEventListener('change', () => {
+    hideError();
+    const file = input.files && input.files[0];
+    if (!file) {
+      resetFile();
+      return;
+    }
+
+    const extension = file.name.split('.').pop().toLowerCase();
+    if (!allowed.includes(extension)) {
+      input.value = '';
+      setInvalid('Разрешены только PDF, DOCX и TXT.');
+      return;
+    }
+    if (file.size > maxSize) {
+      input.value = '';
+      setInvalid('Размер файла превышает 5 МБ.');
+      return;
+    }
+
+    drop.classList.remove('is-ready', 'is-invalid');
+    drop.classList.add('is-loading');
+    title.textContent = file.name;
+    meta.textContent = 'Проверяем файл перед отправкой…';
+    state.textContent = 'Загрузка';
+    submit.disabled = true;
+    submitLabel.textContent = 'Подготовка файла…';
+    setProgress(5, 'Чтение файла…');
+
+    const reader = new FileReader();
+    reader.onprogress = event => {
+      if (!event.lengthComputable) return;
+      const value = Math.max(5, Math.min(95, Math.round((event.loaded / event.total) * 100)));
+      setProgress(value, 'Загрузка и проверка файла…');
+    };
+    reader.onerror = () => setInvalid('Не удалось прочитать файл.');
+    reader.onload = () => setReady(file);
+    reader.readAsArrayBuffer(file);
+  });
+
+  form.addEventListener('submit', () => {
+    if (submit.disabled) return;
+    submit.disabled = true;
+    submit.classList.add('is-processing');
+    submitLabel.textContent = 'AI анализирует резюме…';
+    progressStatus.textContent = 'Файл отправлен. Формируется карьерный трек…';
+    progressBar.style.width = '100%';
+  });
+})();
+</script>
 {% endblock %}
