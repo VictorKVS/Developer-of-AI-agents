@@ -13,6 +13,15 @@ from .schemas import AnalysisResult
 
 logger = logging.getLogger("apps.analysis")
 
+REQUIRED_TOP_LEVEL_KEYS = {
+    "profile",
+    "summary",
+    "recommendations",
+    "confidence",
+    "missing_information",
+    "disclaimer",
+}
+
 BASE_ANALYSIS_PROMPT = """
 Ты вторая аналитическая модель MONGOOSE AI PLATFORM.
 Проанализируй ВСЮ историю диалога, а не отдельные поля.
@@ -44,6 +53,7 @@ REPAIR_PROMPT = """
 profile должен содержать: name, goals, experience, interests, constraints.
 recommendations должен быть массивом объектов с полями title, reason, next_step.
 confidence — число от 0 до 1.
+Не разделяй результат на несколько JSON-блоков. Весь ответ должен быть одним объектом верхнего уровня.
 """.strip()
 
 
@@ -54,7 +64,7 @@ def _safe_preview(value: str | None, limit: int = 1200) -> str:
 
 
 def _extract_json(text: str) -> dict:
-    """Return the first complete JSON object from a flexible LLM response."""
+    """Return the first complete full-schema JSON object from an LLM response."""
     cleaned = (text or "").strip()
     if not cleaned:
         raise ValueError("Аналитическая модель вернула пустой ответ.")
@@ -75,6 +85,14 @@ def _extract_json(text: str) -> dict:
 
     if not isinstance(payload, dict):
         raise ValueError("Аналитическая модель должна вернуть JSON-объект.")
+
+    missing_keys = REQUIRED_TOP_LEVEL_KEYS - set(payload)
+    if missing_keys:
+        raise ValueError(
+            "Аналитическая модель вернула частичный JSON вместо полного результата. "
+            f"Отсутствуют поля: {', '.join(sorted(missing_keys))}."
+        )
+
     return payload
 
 
