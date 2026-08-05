@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/VictorKVS/Developer-of-AI-agents/00_STANDARDS/01_PROJECT_MANIFEST.schema.json",
+  "title": "KVS Project Manifest",
+  "type": "object",
+  "required": ["project", "status", "requirements", "architecture", "agents", "reusable_assets", "decisions"],
+  "properties": {
+    "project": {
+      "type": "object",
+      "required": ["id", "title", "version", "repository_path", "course_stage"],
+      "properties": {
+        "id": {"type": "string"},
+        "title": {"type": "string"},
+        "version": {"type": "string"},
+        "repository_path": {"type": "string"},
+        "course_stage": {"type": "string"},
+        "description": {"type": "string"},
+        "tags": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "status": {
+      "type": "object",
+      "required": ["phase", "implemented", "planned"],
+      "properties": {
+        "phase": {"enum": ["idea", "planned", "in_progress", "implemented", "tested", "released", "archived"]},
+        "implemented": {"type": "array", "items": {"type": "string"}},
+        "planned": {"type": "array", "items": {"type": "string"}},
+        "blocked": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "text", "status", "evidence"],
+        "properties": {
+          "id": {"type": "string"},
+          "text": {"type": "string"},
+          "status": {"enum": ["planned", "in_progress", "implemented", "tested", "rejected"]},
+          "evidence": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "architecture": {
+      "type": "object",
+      "required": ["stack", "modules", "data_flows"],
+      "properties": {
+        "stack": {"type": "array", "items": {"type": "string"}},
+        "modules": {"type": "array", "items": {"type": "string"}},
+        "data_flows": {"type": "array", "items": {"type": "string"}},
+        "constraints": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "agents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "goal", "inputs", "tools", "outputs", "guardrails"],
+        "properties": {
+          "id": {"type": "string"},
+          "goal": {"type": "string"},
+          "inputs": {"type": "array", "items": {"type": "string"}},
+          "tools": {"type": "array", "items": {"type": "string"}},
+          "outputs": {"type": "array", "items": {"type": "string"}},
+          "guardrails": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "reusable_assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "path", "status", "tags"],
+        "properties": {
+          "id": {"type": "string"},
+          "type": {"enum": ["component", "service", "prompt", "schema", "test_case", "decision", "safety_rule", "dataset"]},
+          "path": {"type": "string"},
+          "status": {"enum": ["candidate", "approved", "deprecated", "restricted"]},
+          "tags": {"type": "array", "items": {"type": "string"}},
+          "restrictions": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "status", "decision", "reason"],
+        "properties": {
+          "id": {"type": "string"},
+          "status": {"enum": ["accepted", "rejected", "superseded"]},
+          "decision": {"type": "string"},
+          "reason": {"type": "string"},
+          "supersedes": {"type": ["string", "null"]}
+        }
+      }
+    }
+  }
+}
