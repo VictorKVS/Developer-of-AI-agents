@@ -24,13 +24,20 @@ logger = logging.getLogger("apps.conversations")
 
 
 def _build_workspace_context(request) -> str | None:
-    resume_text = request.session.get("workspace_resume_text")
-    career_result = request.session.get("workspace_career_track")
+    workspace = request.session.get("workspace_context", {})
+    resume_text = workspace.get("resume_text")
+    career_result = workspace.get("career_track")
+    document_name = workspace.get("document_name", "")
+    target_role = workspace.get("target_role_title", "")
 
     if not resume_text and not career_result:
         return None
 
     parts = ["WORKSPACE LITE — ДАННЫЕ КАНДИДАТА"]
+    if document_name:
+        parts.append(f"Документ: {document_name}")
+    if target_role:
+        parts.append(f"Целевая роль: {target_role}")
     if resume_text:
         parts.append("\nИСХОДНОЕ РЕЗЮМЕ:\n" + resume_text[:14000])
     if career_result:
@@ -39,7 +46,9 @@ def _build_workspace_context(request) -> str | None:
             + json.dumps(career_result, ensure_ascii=False, indent=2)[:8000]
         )
     parts.append(
-        "\nПри запросе анализа отделяй подтверждённые факты, сильные стороны, "
+        "\nСчитай эти данные уже загруженными в текущее рабочее пространство. "
+        "Не проси пользователя повторно прислать резюме или уточнить, о каком резюме идёт речь. "
+        "При запросе анализа отделяй подтверждённые факты, сильные стороны, "
         "пробелы, риски и рекомендуемые следующие шаги."
     )
     return "\n".join(parts)
