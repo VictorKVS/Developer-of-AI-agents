@@ -4,6 +4,49 @@ This journal records every meaningful change to the project. New entries are app
 
 ---
 
+## PJ-0003 — Unified Workspace session key repair
+
+**Date:** 2026-08-05  
+**Time:** 10:56 Europe/Riga  
+**Status:** completed  
+**Authors:** Victor + ChatGPT
+
+### Topic
+
+Repair of the session contract between Professional Assessment and Dialogue Center.
+
+### Reason
+
+The resume upload and career analysis completed successfully, and `/chat/` opened in the same browser session, but the dialogue model still asked which resume the user meant. The cause was a key mismatch: `/career/` stored a dictionary under `workspace_context`, while the dialogue API still searched for deprecated keys `workspace_resume_text` and `workspace_career_track`.
+
+### Decision
+
+Use one canonical session object:
+
+- `workspace_context.resume_text`;
+- `workspace_context.career_track`;
+- `workspace_context.document_name`;
+- `workspace_context.target_role_title`.
+
+The dialogue prompt now explicitly states that the resume is already loaded and the model must not ask the user to upload it again or clarify which resume is meant.
+
+### Files or modules changed
+
+- `apps/conversations/views.py`
+- `docs/PROJECT_JOURNAL.md`
+
+### Impact
+
+The sequence `upload resume → build track → continue in chat` now uses the same session keys end to end. The API response retains the `workspace_context_used` diagnostic flag for verification.
+
+### Related records
+
+- ADR-0008 — Workspace First and project memory.
+- PJ-0002 — Resume-aware Workspace Lite dialogue.
+- Commit `d497b00`.
+
+---
+
 ## PJ-0002 — Resume-aware Workspace Lite dialogue
 
 **Date:** 2026-08-05  
