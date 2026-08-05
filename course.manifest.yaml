@@ -1,0 +1,88 @@
+schema_version: "1.0"
+portfolio:
+  id: developer-of-ai-agents
+  title: "Developer of AI Agents"
+  language: ru
+  repository: "VictorKVS/Developer-of-AI-agents"
+  purpose:
+    - course_portfolio
+    - reusable_agent_architecture
+    - machine_readable_engineering_memory
+  principles:
+    - workspace_first
+    - deterministic_core
+    - verifiable_ai
+    - security_by_design
+    - reuse_before_rewrite
+    - synthetic_demo_data
+
+standards:
+  directory: "00_STANDARDS"
+  engineering_standard: "00_STANDARDS/00_KVS_ENGINEERING_STANDARD.yaml"
+  project_schema: "00_STANDARDS/01_PROJECT_MANIFEST.schema.json"
+  agent_context_protocol: "00_STANDARDS/02_AGENT_CONTEXT_PROTOCOL.md"
+
+projects:
+  - id: "02-dialogue-ai-assistant"
+    order: 2
+    title: "MONGOOSE AI PLATFORM"
+    path: "projects/02-dialogue-ai-assistant"
+    status: release_candidate
+    course_focus:
+      - dialogue
+      - conversation_history
+      - structured_analysis
+      - professional_assessment
+      - pdf_reports
+      - workspace_lite
+    reusable_assets:
+      - dialogue_api
+      - provider_abstraction
+      - analysis_factory
+      - report_factory
+      - request_tracing
+      - safe_document_parsing
+
+  - id: "04-ai-fitness-trainer"
+    order: 4
+    title: "PULSE CARE AI"
+    path: "projects/04-ai-fitness-trainer"
+    status: in_development
+    homework: "2242 PRO"
+    course_focus:
+      - web_ai_assistant
+      - fitness_goals
+      - metric_journal
+      - deterministic_forecast
+      - explainable_recommendations
+      - synthetic_device_events
+      - safety_rules
+    depends_on:
+      - "02-dialogue-ai-assistant"
+    reuses:
+      - ui_shell_patterns
+      - ai_chat_patterns
+      - structured_output
+      - engineering_documentation
+
+agent_read_order:
+  - "course.manifest.yaml"
+  - "00_STANDARDS/00_KVS_ENGINEERING_STANDARD.yaml"
+  - "00_STANDARDS/02_AGENT_CONTEXT_PROTOCOL.md"
+  - "projects/<project-id>/project.manifest.yaml"
+  - "projects/<project-id>/README.md"
+  - "projects/<project-id>/docs/"
+
+update_policy:
+  when_project_created:
+    - register_in_course_manifest
+    - create_project_manifest
+    - add_to_root_readme
+  when_architecture_changes:
+    - update_project_manifest
+    - update_project_journal
+    - create_or_update_adr
+  when_feature_completed:
+    - update_status
+    - record_evidence
+    - register_reusable_asset
