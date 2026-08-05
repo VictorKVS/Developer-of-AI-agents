@@ -3,12 +3,24 @@ from django.shortcuts import render
 from .career_services import TARGET_ROLES, build_career_track, extract_resume_text
 
 
+WORKSPACE_RESUME_LIMIT = 24_000
+
+
 def index(request):
     return render(request, "web/index.html")
 
 
 def chat(request):
-    return render(request, "web/chat.html")
+    workspace = request.session.get("workspace_context", {})
+    return render(
+        request,
+        "web/chat.html",
+        {
+            "workspace_loaded": bool(workspace.get("resume_text")),
+            "workspace_document_name": workspace.get("document_name", ""),
+            "workspace_target_role": workspace.get("target_role_title", ""),
+        },
+    )
 
 
 def career_track(request):
@@ -25,10 +37,21 @@ def career_track(request):
         try:
             resume_text = extract_resume_text(uploaded_file)
             result, model_name = build_career_track(resume_text, target_role)
+            result_data = result.model_dump()
             context["result"] = result
             context["model_name"] = model_name
             context["selected_role"] = target_role
-            request.session["career_track_result"] = result.model_dump()
+
+            request.session["career_track_result"] = result_data
+            request.session["workspace_context"] = {
+                "document_name": uploaded_file.name,
+                "resume_text": resume_text[:WORKSPACE_RESUME_LIMIT],
+                "target_role": target_role,
+                "target_role_title": TARGET_ROLES.get(target_role, target_role),
+                "career_track": result_data,
+                "model_name": model_name,
+            }
+            request.session.modified = True
         except Exception as exc:
             context["error"] = f"Не удалось построить трек: {exc}"
 
