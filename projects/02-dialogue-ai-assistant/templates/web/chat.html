@@ -62,7 +62,7 @@
             <div class="analysis-progress-track"><span id="analysis-progress-bar"></span></div>
         </div>
 
-        <a id="download-link" class="button" href="#" hidden>Скачать PDF <span>↓</span></a>
+        <button id="download-link" class="button" type="button" hidden>Скачать PDF <span>↓</span></button>
         <p id="analysis-summary" class="status"></p>
     </aside>
 </section>
@@ -77,7 +77,7 @@
 .analysis-progress.is-error{border-color:rgba(255,107,134,.28);background:rgba(255,107,134,.06)}
 </style>
 <script>
-let conversationId=null;
+let conversationId=null,dialogueReportUrl=null;
 const form=document.getElementById("chat-form"),input=document.getElementById("message"),messages=document.getElementById("messages"),statusBox=document.getElementById("status"),csrfToken=document.getElementById("csrf-token").dataset.token,completeButton=document.getElementById("complete-button"),downloadLink=document.getElementById("download-link"),analysisSummary=document.getElementById("analysis-summary"),analysisProfile=document.getElementById("analysis-profile"),profileInfo=document.getElementById("profile-info"),profileInfoToggle=document.getElementById("profile-info-toggle"),profileInfoTitle=document.getElementById("profile-info-title"),analysisHint=document.querySelector("#profile-info #analysis-hint"),profileInfoNote=document.getElementById("profile-info-note"),analysisProgress=document.getElementById("analysis-progress"),analysisProgressBar=document.getElementById("analysis-progress-bar"),analysisProgressPercent=document.getElementById("analysis-progress-percent"),analysisProgressLabel=document.getElementById("analysis-progress-label");
 const profiles={
 career_strategist:{title:"Карьерный стратег",description:"Сопоставляет опыт, цели и рынок: показывает сильные стороны, риски и ближайший карьерный маршрут.",note:"Практический профессиональный разбор без гарантии трудоустройства."},
@@ -91,12 +91,12 @@ profileInfoToggle.addEventListener("click",()=>{const willOpen=profileInfo.hidde
 function appendMessage(role,content){document.getElementById("empty-state")?.remove();const block=document.createElement("div");block.className=`message ${role}`;const title=document.createElement("strong"),text=document.createElement("p");title.textContent=role==="user"?"Вы":"MONGOOSE AI";text.textContent=content;block.append(title,text);messages.appendChild(block);messages.scrollTop=messages.scrollHeight;}
 function setThinking(active,text="AI формирует ответ"){statusBox.classList.remove("error");statusBox.innerHTML=active?`<span class="thinking">${text} <i></i><i></i><i></i></span>`:"";}
 function setAnalysisProgress(value,label,state=""){analysisProgress.hidden=false;analysisProgress.classList.remove("is-ready","is-error");if(state)analysisProgress.classList.add(state);analysisProgressBar.style.width=`${value}%`;analysisProgressPercent.textContent=`${value}%`;analysisProgressLabel.textContent=label;}
-async function parseError(response,fallback){let detail=fallback;try{const data=await response.json();detail=data.detail||fallback;}catch(_){const text=await response.text();if(text)detail=text.slice(0,300);}const id=response.headers.get("X-Correlation-ID");return id?`${detail} [request: ${id}]`:detail;}
+async function parseError(response,fallback){let detail=fallback;try{const data=await response.clone().json();detail=data.detail||fallback;}catch(_){const text=await response.text();if(text)detail=text.slice(0,300);}const id=response.headers.get("X-Correlation-ID");return id?`${detail} [request: ${id}]`:detail;}
 async function createConversation(){const response=await fetch("/api/v1/conversations/",{method:"POST",headers:{"Content-Type":"application/json","X-CSRFToken":csrfToken},credentials:"same-origin",body:"{}"});if(!response.ok)throw new Error(await parseError(response,"Не удалось создать диалог."));conversationId=(await response.json()).public_id;}
 form.addEventListener("submit",async event=>{event.preventDefault();const message=input.value.trim();if(!message)return;input.disabled=true;form.querySelector("button").disabled=true;setThinking(true);try{if(!conversationId)await createConversation();appendMessage("user",message);input.value="";const response=await fetch(`/api/v1/conversations/${conversationId}/chat/`,{method:"POST",headers:{"Content-Type":"application/json","X-CSRFToken":csrfToken},credentials:"same-origin",body:JSON.stringify({message})});if(!response.ok)throw new Error(await parseError(response,"Не удалось получить ответ AI."));appendMessage("assistant",(await response.json()).assistant_message.content);setThinking(false);}catch(error){statusBox.classList.add("error");statusBox.textContent=error.message;}finally{input.disabled=false;form.querySelector("button").disabled=false;input.focus();}});
 completeButton.addEventListener("click",async()=>{
     if(!conversationId){analysisSummary.textContent="Сначала проведите диалог.";return;}
-    completeButton.disabled=true;analysisProfile.disabled=true;form.querySelector("button").disabled=true;input.disabled=true;downloadLink.hidden=true;analysisSummary.textContent="";
+    completeButton.disabled=true;analysisProfile.disabled=true;form.querySelector("button").disabled=true;input.disabled=true;downloadLink.hidden=true;dialogueReportUrl=null;analysisSummary.textContent="";
     setAnalysisProgress(12,"Подготовка истории диалога…");
     const timers=[
         window.setTimeout(()=>setAnalysisProgress(35,"Вторая модель анализирует историю…"),450),
@@ -106,17 +106,45 @@ completeButton.addEventListener("click",async()=>{
     ];
     try{
         const response=await fetch(`/api/v1/conversations/${conversationId}/complete/`,{method:"POST",headers:{"Content-Type":"application/json","X-CSRFToken":csrfToken},credentials:"same-origin",body:JSON.stringify({analysis_profile:analysisProfile.value})});
-        timers.forEach(window.clearTimeout);
+        timers.forEach(id=>window.clearTimeout(id));
         if(!response.ok)throw new Error(await parseError(response,"Не удалось завершить анализ."));
         const data=await response.json();
-        setAnalysisProgress(100,"Отчёт готов к скачиванию","is-ready");
+        dialogueReportUrl=data.download_url;
+        setAnalysisProgress(100,"Отчёт создан. Нажмите «Скачать PDF»","is-ready");
         analysisSummary.textContent=`${data.analysis_profile_title||"Анализ"}: ${data.summary||"Отчёт готов."}`;
-        downloadLink.href=data.download_url;downloadLink.hidden=false;completeButton.hidden=true;
+        downloadLink.hidden=false;completeButton.hidden=true;
     }catch(error){
-        timers.forEach(window.clearTimeout);
+        timers.forEach(id=>window.clearTimeout(id));
         setAnalysisProgress(100,"Анализ не завершён","is-error");
         analysisSummary.textContent=error.message;
         completeButton.disabled=false;analysisProfile.disabled=false;form.querySelector("button").disabled=false;input.disabled=false;
+    }
+});
+downloadLink.addEventListener("click",async()=>{
+    if(!dialogueReportUrl){analysisSummary.textContent="Ссылка на отчёт ещё не сформирована.";return;}
+    downloadLink.disabled=true;
+    setAnalysisProgress(96,"Получение PDF с сервера…");
+    try{
+        const response=await fetch(dialogueReportUrl,{method:"GET",credentials:"same-origin",cache:"no-store"});
+        if(!response.ok)throw new Error(await parseError(response,"Не удалось скачать PDF."));
+        const contentType=response.headers.get("Content-Type")||"";
+        if(!contentType.includes("application/pdf"))throw new Error("Сервер вернул не PDF-файл.");
+        const blob=await response.blob();
+        if(blob.size<100)throw new Error("Получен пустой PDF-файл.");
+        const objectUrl=URL.createObjectURL(blob);
+        const anchor=document.createElement("a");
+        anchor.href=objectUrl;
+        anchor.download=`mongoose-dialogue-${conversationId}.pdf`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        window.setTimeout(()=>URL.revokeObjectURL(objectUrl),1500);
+        setAnalysisProgress(100,"PDF успешно скачан","is-ready");
+    }catch(error){
+        setAnalysisProgress(100,"Не удалось скачать PDF","is-error");
+        analysisSummary.textContent=error.message;
+    }finally{
+        downloadLink.disabled=false;
     }
 });
 </script>
