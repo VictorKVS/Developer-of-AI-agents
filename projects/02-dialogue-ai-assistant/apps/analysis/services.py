@@ -37,17 +37,33 @@ BASE_ANALYSIS_PROMPT = """
 
 
 def _extract_json(text: str) -> dict:
+    """Return the first complete JSON object from a flexible LLM response.
+
+    The model may wrap JSON in Markdown, prepend an explanation, append prose,
+    or even emit a second JSON object. JSONDecoder.raw_decode stops exactly at
+    the end of the first complete object, so trailing model output is ignored.
+    """
     cleaned = (text or "").strip()
     if not cleaned:
         raise ValueError("Аналитическая модель вернула пустой ответ.")
 
     cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
-    cleaned = re.sub(r"\s*```$", "", cleaned)
     start = cleaned.find("{")
-    end = cleaned.rfind("}")
-    if start == -1 or end == -1 or end <= start:
+    if start == -1:
         raise ValueError("Аналитическая модель не вернула JSON-объект.")
-    return json.loads(cleaned[start : end + 1])
+
+    decoder = json.JSONDecoder()
+    try:
+        payload, _ = decoder.raw_decode(cleaned[start:])
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            "Аналитическая модель вернула повреждённый JSON. "
+            f"Строка {exc.lineno}, позиция {exc.colno}."
+        ) from exc
+
+    if not isinstance(payload, dict):
+        raise ValueError("Аналитическая модель должна вернуть JSON-объект.")
+    return payload
 
 
 def _item_to_text(value) -> str:
