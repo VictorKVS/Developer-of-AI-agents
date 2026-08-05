@@ -4,6 +4,48 @@ This journal records every meaningful change to the project. New entries are app
 
 ---
 
+## PJ-0006 — Career upload UX and transient error handling
+
+**Date:** 2026-08-05  
+**Time:** 14:24 Europe/Riga  
+**Status:** completed  
+**Authors:** Victor + ChatGPT
+
+### Topic
+
+Premium upload states and cleaner error presentation in Career Intelligence.
+
+### Reason
+
+Provider diagnostics remained visible too long and exposed service wording that was useful for logs but unsuitable for the user interface. The native file input also did not show whether a document had been read successfully, and the primary action was not visually connected to file readiness.
+
+### Decision
+
+- replace raw provider diagnostics with short user-facing messages while retaining full exceptions in logs;
+- display errors as dismissible alerts that disappear automatically after eight seconds or immediately when a new file is selected;
+- replace the default file control with a brighter branded upload surface;
+- validate extension and size in the browser;
+- display file-reading progress and a percentage indicator;
+- change the upload area to a light-green success state when the document is ready;
+- keep the Career Track action disabled until the file is validated;
+- activate the action with a green visual state and change its label during AI processing.
+
+### Files or modules changed
+
+- `apps/web/views.py`
+- `templates/web/career_track.html`
+- `docs/PROJECT_JOURNAL.md`
+
+### Impact
+
+The Career Track workflow now provides an intuitive sequence: select → validate → ready → analyze. Technical provider text no longer remains on screen, while full diagnostic information is preserved in server logs.
+
+### Related records
+
+- Commits `6e44870`, `a25c8ff`, and `acd003f`.
+
+---
+
 ## PJ-0005 — Career safety filtering and retry lifecycle repair
 
 **Date:** 2026-08-05  
