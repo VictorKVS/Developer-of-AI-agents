@@ -4,6 +4,46 @@ This journal records every meaningful change to the project. New entries are app
 
 ---
 
+## PJ-0005 — Career safety filtering and retry lifecycle repair
+
+**Date:** 2026-08-05  
+**Time:** 14:18 Europe/Riga  
+**Status:** completed  
+**Authors:** Victor + ChatGPT
+
+### Topic
+
+Stabilization of Career Track generation for an extended information-security resume.
+
+### Reason
+
+GigaChat declined the synthetic resume analysis because some historical security-service wording was classified as sensitive. The controlled repair request then reused the same asynchronous provider after the `async_to_sync` event loop had closed, producing `Event loop is closed`.
+
+### Decision
+
+- keep the original resume unchanged in Workspace Lite;
+- create a separate career-analysis copy with narrowly scoped neutral replacements for sensitive service terminology;
+- explicitly limit the Career Analyst to skills, projects, education, experience, and professional results;
+- prohibit political, reliability, health, private-life, and security-clearance assessments in the prompt;
+- build a fresh LLM provider for the retry instead of reusing a client bound to a closed event loop;
+- send a new standalone repair request rather than the previous refusal text.
+
+### Files or modules changed
+
+- `apps/web/career_services.py`
+- `docs/PROJECT_JOURNAL.md`
+
+### Impact
+
+The synthetic security resume remains detailed in the repository and shared Workspace, while the Career Track request is constrained to a safe professional assessment. Retry execution no longer reuses a closed asynchronous client.
+
+### Related records
+
+- PJ-0004 — Career analysis JSON recovery.
+- Commit `29c67ee`.
+
+---
+
 ## PJ-0004 — Career analysis JSON recovery
 
 **Date:** 2026-08-05  
