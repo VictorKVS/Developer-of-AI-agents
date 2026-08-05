@@ -1,0 +1,119 @@
+schema_version: "1.0"
+project:
+  id: "01-text-meaning-tone-editor"
+  order: 1
+  title: "MONGOOSE TEXT"
+  subtitle: "AI-редактор смыслов и тональности текста"
+  homework: "2235 PRO"
+  status: needs_inventory
+  path: "projects/01-text-meaning-tone-editor"
+  language: ru
+  demo_data_policy: synthetic_or_user_provided_only
+
+purpose:
+  primary: "Адаптация текста под цель, аудиторию, тон и контекст без искажения исходного смысла"
+  course_value:
+    - prompt_architecture
+    - controlled_generation
+    - meaning_preservation
+    - structured_output
+    - clarification_cycles
+
+inputs:
+  required:
+    - source_text
+    - communication_goal
+    - target_audience
+    - tone
+  optional:
+    - usage_context
+    - formality_level
+    - desired_length
+    - allow_term_simplification
+
+outputs:
+  required:
+    - adapted_text
+    - neutral_text
+    - change_summary
+  quality_fields:
+    - meaning_preserved
+    - limitations
+    - clarification_history
+
+requirements:
+  - id: R01
+    description: "Принимать исходный текст"
+    status: implemented_claimed
+  - id: R02
+    description: "Принимать цель, аудиторию и тональность"
+    status: implemented_claimed
+  - id: R03
+    description: "Поддерживать дополнительные параметры"
+    status: implemented_claimed
+  - id: R04
+    description: "Сохранять исходный смысл"
+    status: requires_evidence
+  - id: R05
+    description: "Возвращать адаптированный текст, нейтральную версию и пояснение"
+    status: implemented_claimed
+  - id: R06
+    description: "Предоставить ссылку на приложение"
+    status: missing
+  - id: R07
+    description: "Добавить скриншоты интерфейса"
+    status: missing
+  - id: R08
+    description: "Описать архитектуру промпта"
+    status: partial
+  - id: R09
+    description: "Описать сложнейшую проблему и способ решения"
+    status: missing
+
+prompt_architecture:
+  layers:
+    - role_and_task
+    - immutable_meaning_core
+    - transformation_parameters
+    - audience_rules
+    - tone_rules
+    - structure_rules
+    - output_contract
+    - self_check
+  clarification:
+    max_cycles: 3
+    warn_before_clarification: true
+    fallback_after_limit: "generate_from_available_context_with_explicit_limitations"
+
+accepted_decisions:
+  - id: D01
+    decision: "Изменять подачу, но сохранять смысловое ядро"
+  - id: D02
+    decision: "Использовать до трёх циклов уточнения"
+  - id: D03
+    decision: "После лимита уточнений формировать ответ по имеющимся данным"
+  - id: D04
+    decision: "Возвращать структурированный результат из трёх блоков"
+
+reusable_assets:
+  - transformation_parameter_model
+  - clarification_cycle_pattern
+  - meaning_preservation_guard
+  - structured_output_contract
+  - prompt_configuration_ui_pattern
+
+next_actions:
+  - inventory_existing_source_files
+  - copy_application_into_project_folder
+  - document_prompt_architecture
+  - add_demo_examples
+  - add_interface_screenshots
+  - record_application_url
+  - document_hardest_problem_and_solution
+
+agent_read_order:
+  - project.manifest.yaml
+  - README.md
+  - docs/00_TASK_2235_PRO.md
+  - docs/01_PROMPT_ARCHITECTURE.md
+  - docs/04_PROJECT_JOURNAL.md
