@@ -4,6 +4,45 @@ This journal records every meaningful change to the project. New entries are app
 
 ---
 
+## PJ-0004 — Career analysis JSON recovery
+
+**Date:** 2026-08-05  
+**Time:** 14:12 Europe/Riga  
+**Status:** completed  
+**Authors:** Victor + ChatGPT
+
+### Topic
+
+Hardening of structured Career Track parsing for non-ideal LLM responses.
+
+### Reason
+
+The resume file was extracted correctly and the LLM request completed, but `/career/` returned `Expecting value: line 1 column 1 (char 0)`. The parser expected a perfectly clean JSON string and could not handle an empty response, explanatory text before JSON, Markdown fences, or malformed JSON.
+
+### Decision
+
+- reject an empty model response with a clear diagnostic message;
+- locate and parse the JSON object between the first `{` and last `}`;
+- preserve support for fenced JSON;
+- log a safe preview and exact line/column for malformed JSON;
+- perform one controlled repair request asking the same provider to return only valid JSON;
+- continue validating the normalized payload with Pydantic.
+
+### Files or modules changed
+
+- `apps/web/career_services.py`
+- `docs/PROJECT_JOURNAL.md`
+
+### Impact
+
+Career Track generation is more resilient to common LLM formatting deviations. The user receives an actionable error instead of a raw `json.JSONDecodeError`, and a single automatic recovery attempt is made before the operation fails.
+
+### Related records
+
+- Commit `48f92f0`.
+
+---
+
 ## PJ-0003 — Unified Workspace session key repair
 
 **Date:** 2026-08-05  
