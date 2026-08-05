@@ -1,3 +1,5 @@
+import json
+
 from asgiref.sync import async_to_sync
 from django.db import transaction
 from django.http import FileResponse
@@ -18,8 +20,36 @@ from .models import Conversation, Message
 from .serializers import ConversationSerializer, DialogueRequestSerializer, MessageSerializer
 
 
+def _build_workspace_message(request) -> LLMMessage | None:
+    workspace = request.session.get("workspace_context", {})
+    resume_text = workspace.get("resume_text", "").strip()
+    career_track = workspace.get("career_track") or {}
+    if not resume_text and not career_track:
+        return None
+
+    context_payload = {
+        "document_name": workspace.get("document_name", ""),
+        "target_role": workspace.get("target_role_title", ""),
+        "career_track": career_track,
+    }
+    context_json = json.dumps(context_payload, ensure_ascii=False, indent=2)
+    content = (
+        "Ты работаешь внутри MONGOOSE AI Workspace. Пользователь ранее загрузил резюме, "
+        "и платформа уже выполнила профессиональный анализ. Используй приведённые ниже данные "
+        "как общий контекст текущей сессии. Отвечай только на основании резюме, результатов анализа "
+        "и сообщений диалога. Не утверждай факты, которых в этих данных нет. При запросах об ИБ "
+        "сопоставляй опыт кандидата с требованиями позиции и явно разделяй сильные стороны, пробелы, "
+        "риски и следующие шаги.\n\n"
+        f"СТРУКТУРИРОВАННЫЙ АНАЛИЗ WORKSPACE:\n{context_json}\n\n"
+        f"ТЕКСТ ЗАГРУЖЕННОГО РЕЗЮМЕ:\n{resume_text}"
+    )
+    return LLMMessage(role="system", content=content)
+
+
 @api_view(["POST"])
 def create_conversation(request):
+    if not request.session.session_key:
+        request.session.create()
     conversation = Conversation.objects.create(
         status=Conversation.Status.ACTIVE,
         session_key=request.session.session_key or "",
@@ -60,7 +90,15 @@ def chat(request, public_id):
         content=user_text,
         sequence_number=conversation.messages.count() + 1,
     )
-    history = [LLMMessage(role=item.role, content=item.content) for item in conversation.messages.order_by("sequence_number")]
+
+    history = []
+    workspace_message = _build_workspace_message(request)
+    if workspace_message:
+        history.append(workspace_message)
+    history.extend(
+        LLMMessage(role=item.role, content=item.content)
+        for item in conversation.messages.order_by("sequence_number")
+    )
 
     try:
         result = async_to_sync(DialogueService(build_llm_provider()).reply)(history)
@@ -78,6 +116,7 @@ def chat(request, public_id):
     return Response({
         "conversation_id": conversation.public_id,
         "model": result.model,
+        "workspace_loaded": workspace_message is not None,
         "user_message": MessageSerializer(user_message).data,
         "assistant_message": MessageSerializer(assistant_message).data,
     })
