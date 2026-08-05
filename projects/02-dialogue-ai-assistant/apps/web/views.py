@@ -1,7 +1,9 @@
 import logging
 
+from django.http import HttpResponse
 from django.shortcuts import render
 
+from .career_pdf import render_career_track_pdf
 from .career_services import TARGET_ROLES, build_career_track, extract_resume_text
 
 
@@ -82,3 +84,34 @@ def career_track(request):
             context["error"] = _career_user_error(exc)
 
     return render(request, "web/career_track.html", context)
+
+
+def download_career_report(request):
+    result = request.session.get("career_track_result")
+    workspace = request.session.get("workspace_context", {})
+    if not result:
+        return HttpResponse(
+            "Сначала загрузите резюме и постройте карьерный трек.",
+            status=404,
+            content_type="text/plain; charset=utf-8",
+        )
+
+    try:
+        pdf_bytes = render_career_track_pdf(
+            result=result,
+            model_name=workspace.get("model_name", ""),
+            document_name=workspace.get("document_name", ""),
+        )
+    except Exception:
+        logger.exception("Career PDF generation failed")
+        return HttpResponse(
+            "Не удалось сформировать PDF-отчёт.",
+            status=500,
+            content_type="text/plain; charset=utf-8",
+        )
+
+    response = HttpResponse(pdf_bytes, content_type="application/pdf")
+    response["Content-Disposition"] = 'attachment; filename="mongoose-career-track.pdf"'
+    response["Content-Length"] = str(len(pdf_bytes))
+    response["Cache-Control"] = "no-store"
+    return response
