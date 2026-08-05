@@ -1,20 +1,30 @@
-schema_version: "1.0"
+schema_version: "1.1"
 portfolio:
   id: developer-of-ai-agents
   title: "Developer of AI Agents"
   language: ru
   repository: "VictorKVS/Developer-of-AI-agents"
+  model: independent_projects_shared_course_memory
   purpose:
     - course_portfolio
+    - independent_project_showcase
     - reusable_agent_architecture
     - machine_readable_engineering_memory
   principles:
-    - workspace_first
+    - independent_projects
+    - reuse_before_rewrite
+    - structured_output
     - deterministic_core
     - verifiable_ai
     - security_by_design
-    - reuse_before_rewrite
     - synthetic_demo_data
+
+progress:
+  registered_projects: 4
+  release_candidate: 1
+  needs_finalization: 2
+  in_development: 1
+  current_project: "04-ai-fitness-trainer"
 
 standards:
   directory: "00_STANDARDS"
@@ -23,8 +33,31 @@ standards:
   agent_context_protocol: "00_STANDARDS/02_AGENT_CONTEXT_PROTOCOL.md"
 
 projects:
+  - id: "01-text-meaning-tone-editor"
+    order: 1
+    homework: "2235 PRO"
+    title: "MONGOOSE TEXT"
+    subtitle: "AI-редактор смыслов и тональности текста"
+    path: "projects/01-text-meaning-tone-editor"
+    manifest: "projects/01-text-meaning-tone-editor/project.manifest.yaml"
+    status: needs_inventory
+    course_focus:
+      - prompt_architecture
+      - meaning_preservation
+      - communication_goal
+      - audience_adaptation
+      - tone_control
+      - clarification_cycles
+      - structured_output
+    reusable_assets:
+      - transformation_parameter_model
+      - clarification_cycle_pattern
+      - meaning_preservation_guard
+      - prompt_configuration_ui_pattern
+
   - id: "02-dialogue-ai-assistant"
     order: 2
+    homework: "2236 PRO"
     title: "MONGOOSE AI PLATFORM"
     path: "projects/02-dialogue-ai-assistant"
     status: release_candidate
@@ -35,6 +68,8 @@ projects:
       - professional_assessment
       - pdf_reports
       - workspace_lite
+    depends_on:
+      - "01-text-meaning-tone-editor"
     reusable_assets:
       - dialogue_api
       - provider_abstraction
@@ -43,12 +78,38 @@ projects:
       - request_tracing
       - safe_document_parsing
 
+  - id: "03-multimodal-action-assistant"
+    order: 3
+    homework: "2237 PRO"
+    title: "MONGOOSE VISION"
+    subtitle: "Multimodal Action Assistant"
+    path: "projects/03-multimodal-action-assistant"
+    status: needs_recovery
+    course_focus:
+      - image_input
+      - voice_input
+      - text_input
+      - multimodal_context
+      - multimodal_analysis
+      - suggested_action_buttons
+      - action_execution
+    depends_on:
+      - "01-text-meaning-tone-editor"
+      - "02-dialogue-ai-assistant"
+    planned_reuse:
+      - prompt_configuration_patterns
+      - dialogue_history
+      - structured_output
+      - safety_layer
+      - action_protocol
+
   - id: "04-ai-fitness-trainer"
     order: 4
+    homework: "2242 PRO"
     title: "PULSE CARE AI"
     path: "projects/04-ai-fitness-trainer"
+    manifest: "projects/04-ai-fitness-trainer/project.manifest.yaml"
     status: in_development
-    homework: "2242 PRO"
     course_focus:
       - web_ai_assistant
       - fitness_goals
@@ -58,8 +119,11 @@ projects:
       - synthetic_device_events
       - safety_rules
     depends_on:
+      - "01-text-meaning-tone-editor"
       - "02-dialogue-ai-assistant"
+      - "03-multimodal-action-assistant"
     reuses:
+      - prompt_parameter_patterns
       - ui_shell_patterns
       - ai_chat_patterns
       - structured_output
@@ -78,6 +142,10 @@ update_policy:
     - register_in_course_manifest
     - create_project_manifest
     - add_to_root_readme
+  when_project_status_changes:
+    - update_progress_summary
+    - update_root_readme
+    - update_project_manifest
   when_architecture_changes:
     - update_project_manifest
     - update_project_journal
