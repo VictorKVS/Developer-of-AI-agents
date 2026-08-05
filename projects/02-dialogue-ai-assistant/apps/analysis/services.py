@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 
 from asgiref.sync import async_to_sync
@@ -9,6 +10,8 @@ from mongoose_core.providers.factory import build_llm_provider
 from .profiles import get_analysis_profile
 from .schemas import AnalysisResult
 
+
+logger = logging.getLogger("apps.analysis")
 
 BASE_ANALYSIS_PROMPT = """
 Ты вторая аналитическая модель MONGOOSE AI PLATFORM.
@@ -35,14 +38,17 @@ BASE_ANALYSIS_PROMPT = """
 Поле profile.experience всегда возвращай одной строкой, а не списком или объектом.
 """.strip()
 
+REPAIR_PROMPT = """
+Верни только один валидный JSON-объект без Markdown, пояснений и текста до или после JSON.
+Строго используй поля: profile, summary, recommendations, confidence, missing_information, disclaimer.
+profile должен содержать: name, goals, experience, interests, constraints.
+recommendations должен быть массивом объектов с полями title, reason, next_step.
+confidence — число от 0 до 1.
+""".strip()
+
 
 def _extract_json(text: str) -> dict:
-    """Return the first complete JSON object from a flexible LLM response.
-
-    The model may wrap JSON in Markdown, prepend an explanation, append prose,
-    or even emit a second JSON object. JSONDecoder.raw_decode stops exactly at
-    the end of the first complete object, so trailing model output is ignored.
-    """
+    """Return the first complete JSON object from a flexible LLM response."""
     cleaned = (text or "").strip()
     if not cleaned:
         raise ValueError("Аналитическая модель вернула пустой ответ.")
@@ -150,6 +156,27 @@ def _normalize_analysis_payload(payload: dict) -> dict:
     return payload
 
 
+def _generate_with_repair(history: list[LLMMessage], system_instruction: str):
+    provider = build_llm_provider()
+    result = async_to_sync(provider.generate)(history, system_instruction=system_instruction)
+    try:
+        return _extract_json(result.text), result.model
+    except ValueError as exc:
+        logger.warning(
+            "Analysis response requires repair model=%s error=%s preview=%r",
+            result.model,
+            exc,
+            (result.text or "")[:300],
+        )
+
+    repair_provider = build_llm_provider()
+    repair_result = async_to_sync(repair_provider.generate)(
+        history,
+        system_instruction=f"{system_instruction}\n\n{REPAIR_PROMPT}",
+    )
+    return _extract_json(repair_result.text), repair_result.model
+
+
 def analyze_conversation(conversation, profile_key: str | None = None):
     history = [
         LLMMessage(role=item.role, content=item.content)
@@ -166,12 +193,8 @@ def analyze_conversation(conversation, profile_key: str | None = None):
         f"ОБЯЗАТЕЛЬНЫЙ ДИСКЛЕЙМЕР: {profile.disclaimer}"
     )
 
-    provider = build_llm_provider()
-    result = async_to_sync(provider.generate)(
-        history,
-        system_instruction=system_instruction,
-    )
-    payload = _normalize_analysis_payload(_extract_json(result.text))
+    raw_payload, model_name = _generate_with_repair(history, system_instruction)
+    payload = _normalize_analysis_payload(raw_payload)
     parsed = AnalysisResult.model_validate(payload)
     parsed.disclaimer = profile.disclaimer
-    return parsed, result.model, profile
+    return parsed, model_name, profile
