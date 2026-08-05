@@ -1,8 +1,11 @@
+import logging
+
 from django.shortcuts import render
 
 from .career_services import TARGET_ROLES, build_career_track, extract_resume_text
 
 
+logger = logging.getLogger("apps.web")
 WORKSPACE_RESUME_LIMIT = 24_000
 
 
@@ -21,6 +24,24 @@ def chat(request):
             "workspace_target_role": workspace.get("target_role_title", ""),
         },
     )
+
+
+def _career_user_error(exc: Exception) -> str:
+    text = str(exc)
+    lowered = text.lower()
+
+    if "чувствитель" in lowered or "без json-объекта" in lowered:
+        return (
+            "AI-провайдер не смог обработать этот вариант документа. "
+            "Попробуйте нейтральную карьерную версию резюме или другой файл."
+        )
+    if "event loop" in lowered:
+        return "Сервис анализа временно перезапускается. Повторите попытку через несколько секунд."
+    if "пустой ответ" in lowered:
+        return "AI-провайдер не вернул результат. Повторите попытку."
+    if isinstance(exc, ValueError):
+        return text[:280]
+    return "Не удалось сформировать карьерный трек. Повторите попытку или выберите другой файл."
 
 
 def career_track(request):
@@ -53,6 +74,11 @@ def career_track(request):
             }
             request.session.modified = True
         except Exception as exc:
-            context["error"] = f"Не удалось построить трек: {exc}"
+            logger.exception(
+                "Career track build failed file=%s role=%s",
+                getattr(uploaded_file, "name", "unknown"),
+                target_role,
+            )
+            context["error"] = _career_user_error(exc)
 
     return render(request, "web/career_track.html", context)
